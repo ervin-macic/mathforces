@@ -5,6 +5,7 @@ export enum Page {
   Leaderboard = 'LEADERBOARD',
   Progress = 'PROGRESS',
   SessionSettings = 'SESSION_SETTINGS',
+  Competition = 'COMPETITION',
 }
 
 export interface Problem {
@@ -12,6 +13,7 @@ export interface Problem {
   statement: string;
   topic: string;
   hints: string[];
+  difficulty: number,
 }
 
 export interface SolvedProblem {

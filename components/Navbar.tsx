@@ -23,7 +23,7 @@ const Navbar: React.FC<NavbarProps> = ({ activePage, onNavigate, isLoggedIn, onL
 
 
   return (
-    <nav className="bg-secondary/50 backdrop-blur-sm py-2 px-4 sticky top-0 z-10 shadow-lg shadow-primary/40">
+    <nav className="bg-[#1f2023]/90 backdrop-blur-sm py-4 px-4 sticky top-0 z-10 shadow-lg shadow-primary/40">
       <div className="container mx-auto flex justify-between items-center">
         <div className="text-xl font-bold text-accent">MathForces</div>
         <div className="hidden md:flex items-center space-x-6">
@@ -31,8 +31,8 @@ const Navbar: React.FC<NavbarProps> = ({ activePage, onNavigate, isLoggedIn, onL
             <button
               key={item.page}
               onClick={() => onNavigate(item.page)}
-              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors duration-200 ${
-                activePage === item.page || (activePage === Page.Play && item.page === Page.SessionSettings)
+              className={`px-3 py-1 rounded-md text-base font-medium transition-colors duration-200 ${
+                activePage === item.page || ([Page.Play, Page.Competition].includes(activePage) && item.page === Page.SessionSettings)
                   ? 'bg-accent text-primary'
                   : 'text-light hover:bg-secondary/70 hover:text-accent'
               }`}
@@ -41,11 +41,11 @@ const Navbar: React.FC<NavbarProps> = ({ activePage, onNavigate, isLoggedIn, onL
             </button>
           ))}
           {isLoggedIn ? (
-             <button onClick={onLogoutClick} className="bg-secondary text-light px-4 py-1 rounded-md text-sm font-medium hover:bg-accent hover:text-primary transition-colors">
+             <button onClick={onLogoutClick} className="bg-secondary text-light px-4 py-1 rounded-md text-base font-medium hover:bg-accent hover:text-primary transition-colors">
                 Logout
             </button>
           ) : (
-            <button onClick={onLoginClick} className="bg-secondary text-light px-4 py-1 rounded-md text-sm font-medium hover:bg-accent hover:text-primary transition-colors">
+            <button onClick={onLoginClick} className="bg-secondary text-light px-4 py-1 rounded-md text-base font-medium hover:bg-accent hover:text-primary transition-colors">
                 Login
             </button>
           )}

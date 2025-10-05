@@ -1,20 +1,23 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { SolvedProblem } from '../types';
-import { PROBLEMS } from '../constants';
+import { SolvedProblem, Problem } from '../types';
 import Timer from '../components/Timer';
 import TypewriterHint from '../components/TypewriterHint';
 import { MathJax } from 'better-react-mathjax';
+
+declare const confetti: any;
 
 type AnimationStage = 'PROBLEM_VIEW' | 'RATING_VIEW' | 'RATING_EXITING' | 'PROBLEM_EXITING' | 'PROBLEM_RESETTING';
 type PlayView = 'START_SCREEN' | 'PLAYING' | 'SUMMARY';
 
 interface PlayPageProps {
+    problems: Problem[];
+    solvedProblems: SolvedProblem[];
     onProblemSolved: (problem: SolvedProblem) => void;
     onSessionEnd: () => void;
     onSessionStart: () => void;
 }
 
-const PlayPage: React.FC<PlayPageProps> = ({ onProblemSolved, onSessionEnd, onSessionStart }) => {
+const PlayPage: React.FC<PlayPageProps> = ({ problems, solvedProblems, onProblemSolved, onSessionEnd, onSessionStart }) => {
   const [playView, setPlayView] = useState<PlayView>('START_SCREEN');
   const [currentProblemIndex, setCurrentProblemIndex] = useState(0);
   const [sessionSolvedProblems, setSessionSolvedProblems] = useState<SolvedProblem[]>([]);
@@ -24,19 +27,90 @@ const PlayPage: React.FC<PlayPageProps> = ({ onProblemSolved, onSessionEnd, onSe
   const [hoverRating, setHoverRating] = useState<number | null>(null);
   const [hintLevel, setHintLevel] = useState(0);
   const [isHintTyping, setIsHintTyping] = useState(false);
+  const [lastAction, setLastAction] = useState<'solved' | 'skipped' | null>(null);
 
-  const currentProblem = PROBLEMS[currentProblemIndex];
+  const currentProblem = problems[currentProblemIndex];
 
   const goToNextProblem = useCallback(() => {
-    // Pick a new random problem that is not the current one
-    setCurrentProblemIndex(currentProblemIndex => {
-        let nextIndex;
-        do {
-          nextIndex = Math.floor(Math.random() * PROBLEMS.length);
-        } while (PROBLEMS.length > 1 && nextIndex === currentProblemIndex);
+    setCurrentProblemIndex(currentIndex => {
+        let nextIndex = -1;
+        const currentProblem = problems[currentIndex];
+
+        if (lastAction === 'solved') {
+            const allSolved = [...solvedProblems, ...sessionSolvedProblems];
+            let weakestTopic = '';
+
+            if (allSolved.length > 0) {
+                const topicStats: Record<string, { totalDifficulty: number; count: number }> = {};
+                allSolved.forEach(p => {
+                    const topic = p.problem.topic;
+                    if (!topicStats[topic]) {
+                        topicStats[topic] = { totalDifficulty: 0, count: 0 };
+                    }
+                    topicStats[topic].totalDifficulty += p.problem.difficulty;
+                    topicStats[topic].count += 1;
+                });
+
+                const topicAverages = Object.entries(topicStats).map(([topic, data]) => ({
+                    topic,
+                    average: data.totalDifficulty / data.count,
+                }));
+
+                if (topicAverages.length > 0) {
+                    topicAverages.sort((a, b) => a.average - b.average);
+                    weakestTopic = topicAverages[0].topic;
+                }
+            }
+            
+            if (weakestTopic) {
+                const candidateProblems = problems
+                    .map((p, index) => ({ p, index }))
+                    .filter(({ p, index }) => p.topic === weakestTopic && index !== currentIndex);
+
+                if (candidateProblems.length > 0) {
+                    // Find problem in weakest category with closest difficulty
+                    let minDiff = Infinity;
+                    let closestProblems: { p: Problem; index: number }[] = [];
+
+                    candidateProblems.forEach(candidate => {
+                        const diff = Math.abs(candidate.p.difficulty - currentProblem.difficulty);
+                        if (diff < minDiff) {
+                            minDiff = diff;
+                            closestProblems = [candidate];
+                        } else if (diff === minDiff) {
+                            closestProblems.push(candidate);
+                        }
+                    });
+                    
+                    const chosenProblem = closestProblems[Math.floor(Math.random() * closestProblems.length)];
+                    nextIndex = chosenProblem.index;
+                }
+            }
+        } else if (lastAction === 'skipped') {
+            const easierProblems = problems
+                .map((p, index) => ({ p, index }))
+                .filter(({ p, index }) => p.difficulty < currentProblem.difficulty && index !== currentIndex);
+            
+            if (easierProblems.length > 0) {
+                // Find the difficulty level of the "hardest" of the easier problems
+                const maxEasierDifficulty = Math.max(...easierProblems.map(({ p }) => p.difficulty));
+                const finalCandidates = easierProblems.filter(({ p }) => p.difficulty === maxEasierDifficulty);
+                const chosenProblem = finalCandidates[Math.floor(Math.random() * finalCandidates.length)];
+                nextIndex = chosenProblem.index;
+            }
+        }
+        
+        // Fallback for all cases: if no suitable problem was found, pick a random different one.
+        if (nextIndex === -1) {
+            do {
+                nextIndex = Math.floor(Math.random() * problems.length);
+            } while (problems.length > 1 && nextIndex === currentIndex);
+        }
+
         return nextIndex;
     });
-  }, []);
+    setLastAction(null);
+  }, [problems, lastAction, solvedProblems, sessionSolvedProblems]);
   
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
@@ -61,7 +135,7 @@ const PlayPage: React.FC<PlayPageProps> = ({ onProblemSolved, onSessionEnd, onSe
 
 
   const handleStartSession = () => {
-    const randomIndex = Math.floor(Math.random() * PROBLEMS.length);
+    const randomIndex = Math.floor(Math.random() * problems.length);
     setCurrentProblemIndex(randomIndex);
     setSessionSolvedProblems([]);
     setHintLevel(0);
@@ -79,6 +153,15 @@ const PlayPage: React.FC<PlayPageProps> = ({ onProblemSolved, onSessionEnd, onSe
   };
 
   const handleSolveProblem = () => {
+    if (typeof confetti === 'function') {
+      confetti({
+        particleCount: 150,
+        spread: 120,
+        origin: { y: 0.6 },
+        colors: ['#e2b713', '#d1d0c5', '#ffffff'],
+        scalar: 1.2
+      });
+    }
     setAnimationStage('RATING_VIEW');
   };
   
@@ -90,7 +173,7 @@ const PlayPage: React.FC<PlayPageProps> = ({ onProblemSolved, onSessionEnd, onSe
   };
 
   const handleConfirmSolve = (rating: number) => {
-    const problem = PROBLEMS[currentProblemIndex];
+    const problem = problems[currentProblemIndex];
     const newSolvedProblem: SolvedProblem = {
       problem,
       timeSpent: currentTime,
@@ -99,10 +182,12 @@ const PlayPage: React.FC<PlayPageProps> = ({ onProblemSolved, onSessionEnd, onSe
     };
     onProblemSolved(newSolvedProblem);
     setSessionSolvedProblems(prev => [...prev, newSolvedProblem]);
+    setLastAction('solved');
     setAnimationStage('RATING_EXITING');
   };
 
   const handleSkipProblem = () => {
+    setLastAction('skipped');
     setAnimationStage('PROBLEM_EXITING');
   };
   
@@ -145,7 +230,7 @@ const PlayPage: React.FC<PlayPageProps> = ({ onProblemSolved, onSessionEnd, onSe
                   <p className="text-xl text-light/80 mb-8">Start your personalized math olympiad session.</p>
                   <button 
                     onClick={handleStartSession}
-                    className="bg-accent text-primary font-bold text-2xl px-12 py-4 rounded-lg hover:opacity-90 transition-opacity shadow-lg"
+                    className="bg-accent text-primary font-bold text-2xl px-12 py-4 rounded-lg hover:opacity-90 transition-all shadow-lg shadow-accent/20 hover:shadow-2xl hover:shadow-accent/40"
                   >
                     Start Session
                   </button>
@@ -192,7 +277,7 @@ const PlayPage: React.FC<PlayPageProps> = ({ onProblemSolved, onSessionEnd, onSe
             </button>
             {/* Problem View */}
             <div className={problemClasses}>
-                <div className="flex flex-col items-center justify-center min-h-full p-8 pt-24 md:pt-8">
+                <div className="flex flex-col items-center justify-center min-h-screen p-8 pt-24 md:pt-8">
                     <div className="w-full max-w-5xl text-center">
                         <div className="flex justify-end items-center mb-10 px-4">
                             <Timer key={currentProblemIndex} onTimeUpdate={setCurrentTime} />
@@ -235,7 +320,7 @@ const PlayPage: React.FC<PlayPageProps> = ({ onProblemSolved, onSessionEnd, onSe
             </div>
             {/* Rating View */}
             <div className={ratingClasses}>
-                <div className="flex flex-col items-center justify-center min-h-full p-8">
+                <div className="flex flex-col items-center justify-center min-h-screen p-8">
                     <div className="bg-secondary p-8 rounded-lg shadow-2xl w-full max-w-lg mx-4 text-center">
                         <h2 className="text-2xl font-bold mb-4 text-accent">Problem Solved!</h2>
                         <p className="mb-6 text-light/80">Rate the difficulty of this problem.</p>

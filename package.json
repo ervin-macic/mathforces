@@ -1,5 +1,5 @@
 {
-  "name": "mathforces-v3",
+  "name": "mathforces-v4-competition-mode",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -12,7 +12,9 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "recharts": "^3.2.1",
-    "better-react-mathjax": "^2.0.3"
+    "better-react-mathjax": "^2.0.3",
+    "cheerio": "^1.1.2",
+    "process": "^0.11.10"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

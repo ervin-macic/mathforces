@@ -20,7 +20,7 @@ const TypewriterHint: React.FC<TypewriterHintProps> = ({ text, onTypingComplete 
     if (isTyping) {
       const getTypingDelay = () => {
         // A bit of randomness to feel more natural
-        if (Math.random() < 0.06) { return 50 + Math.random() * 50; }
+        if (Math.random() < 0.06) { return 75 + Math.random() * 50; }
         return 8;
       };
 

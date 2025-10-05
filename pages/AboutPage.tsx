@@ -6,7 +6,7 @@ const AboutPage: React.FC = () => {
         <div className="container mx-auto">
             <div className="py-16 px-8 text-center">
                 <h1 className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-accent to-light bg-clip-text text-transparent max-w-5xl mx-auto">
-                    Real-world math olympiad coaches are rare, expensive, and don’t even exist in some countries.
+                    Math olympiad coaches are rare, expensive, and don’t even exist in some countries. 
                 </h1>
             </div>
         </div>

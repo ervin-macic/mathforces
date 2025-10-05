@@ -1,7 +1,7 @@
 import React from 'react';
 
 interface SessionSettingsPageProps {
-  onModeSelect: (mode: 'endless' | 'mock') => void;
+  onModeSelect: (mode: 'endless' | 'competition') => void;
 }
 
 const SessionSettingsPage: React.FC<SessionSettingsPageProps> = ({ onModeSelect }) => {
@@ -25,9 +25,14 @@ const SessionSettingsPage: React.FC<SessionSettingsPageProps> = ({ onModeSelect 
         </div>
 
         {/* Mock Competition Card */}
-        <div className="bg-secondary p-8 rounded-lg shadow-xl border-2 border-primary relative opacity-50 cursor-not-allowed">
-          <span className="absolute top-4 right-4 bg-primary text-accent text-xs font-bold px-2 py-1 rounded-full">COMING SOON</span>
-          <h2 className="text-2xl font-bold text-light-secondary mb-3">Mock Competition</h2>
+        <div 
+          className="bg-secondary p-8 rounded-lg shadow-xl border-2 border-primary hover:border-accent transition-all cursor-pointer transform hover:-translate-y-1 hover:shadow-2xl hover:shadow-accent/40"
+          onClick={() => onModeSelect('competition')}
+          role="button"
+          tabIndex={0}
+          onKeyPress={(e) => e.key === 'Enter' && onModeSelect('competition')}
+        >
+          <h2 className="text-2xl font-bold text-accent mb-3">Competition Mode</h2>
           <p className="text-light/80 leading-relaxed">
             Simulate a real competition environment with a timed set of problems. Test your skills under pressure.
           </p>
