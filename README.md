@@ -1,13 +1,8 @@
+Made during **Columbia University's hackathon Divhacks 2025**. Won the productivity track.
 
+**Mathforces is an intelligent IMO-level math practice website aimed at students without access to olympiad coaches**.
 
-View in AI Studio: https://ai.studio/apps/drive/113HUcb2XocQ4qH8HC4Au3aBonpF2M0oF
-
-## Run Locally
-
-**Prerequisites:**  Node.js
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+It uses a database of olympiad questions with difficulty spanning easy, medium, hard IMO problems, taken from the Art of Problem Solving website.
+For each question, **Gemini 2.5** generates a series of 3 progressive hints that can guides the user to a full solution. 
+In addition to Unlimited practice mode, the platform also has a competition mode with a format akin to the real IMO.
+It also implements a feedback system for determining the average difficulty of each question.
