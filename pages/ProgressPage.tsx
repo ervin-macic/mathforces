@@ -26,18 +26,23 @@ const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, per
 
 
 const ProgressPage: React.FC<ProgressPageProps> = ({ solvedProblems }) => {
-  const recentProblems = solvedProblems.slice().reverse().slice(0, 3);
+  // Separate solved from skipped for accurate stats
+  const solvedOnly = solvedProblems.filter(p => p.status !== 'skipped');
+  const recentProblems = solvedOnly.slice().reverse().slice(0, 3);
 
-  const topicCounts = solvedProblems.reduce((acc, solved) => {
+  // Topic distribution counts (solved only)
+  const topicCounts = solvedOnly.reduce((acc, solved) => {
     const topic = solved.problem.topic;
     acc[topic] = (acc[topic] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
   const pieData = Object.entries(topicCounts).map(([name, value]) => ({ name, value }));
-  
+
+  // Average user-rated difficulty per topic (solved only, rating > 0)
   const topicDifficulty: Record<string, { totalDifficulty: number; count: number }> = {};
-    solvedProblems.forEach(p => {
+    solvedOnly.forEach(p => {
+        if (!p.difficultyRating) return;
         const topic = p.problem.topic;
         if (!topicDifficulty[topic]) {
             topicDifficulty[topic] = { totalDifficulty: 0, count: 0 };
@@ -118,9 +123,9 @@ const ProgressPage: React.FC<ProgressPageProps> = ({ solvedProblems }) => {
 
         {/* Sidebar: difficulty chart and history */}
         <div className="lg:col-span-2 space-y-8">
-            <div className="bg-secondary p-6 rounded-lg shadow-xl">
+             <div className="bg-secondary p-6 rounded-lg shadow-xl">
                  <h2 className="text-2xl font-semibold text-accent mb-4">Difficulty Over Time</h2>
-                <ProgressChart data={solvedProblems} />
+                <ProgressChart data={solvedOnly} />
             </div>
              <div className="bg-secondary p-6 rounded-lg shadow-xl">
               <h2 className="text-2xl font-semibold text-accent mb-4">Recent History</h2>

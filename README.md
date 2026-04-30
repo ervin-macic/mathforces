@@ -1,13 +1,91 @@
 
+# MathForces
 
-View in AI Studio: https://ai.studio/apps/drive/113HUcb2XocQ4qH8HC4Au3aBonpF2M0oF
+Personalised math olympiad training — solve successively harder problems and receive AI-generated hints.
+
+## Architecture
+
+```
+frontend/  (Vite + React + TypeScript)
+  lib/
+    recommendationEngine.ts  ← pure problem-selection scoring (also used server-side)
+    mohsService.ts           ← MOHS difficulty update rule (frontend copy)
+    apiClient.ts             ← fetches from backend with graceful in-memory fallback
+server/  (Express + better-sqlite3)
+  src/
+    db/          ← schema, init, seed
+    routes/      ← /api/problems, /api/attempts, /api/users
+    services/    ← recommendationService, mohsService
+data/
+  problems.seed.json   ← curated problem bank (source: AoPS / IMO / BMO)
+  mathforces.db        ← SQLite database (created on first run)
+```
 
 ## Run Locally
 
-**Prerequisites:**  Node.js
+**Prerequisites:** Node.js ≥ 18
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### Frontend only (no backend required)
+
+```bash
+npm install
+npm run dev        # http://localhost:5173
+```
+
+The app works fully offline — the recommendation engine and MOHS updates run in-memory.
+
+### With backend (recommended for multi-user + persistent data)
+
+```bash
+# Terminal 1 — Backend
+cd server
+npm install
+npm run db:seed    # seed the problem bank (idempotent)
+npm run dev        # http://localhost:3001
+
+# Terminal 2 — Frontend
+# Uncomment VITE_API_URL in .env.local:
+#   VITE_API_URL=http://localhost:3001
+npm run dev
+```
+
+## Environment Variables
+
+`.env.local`:
+
+```
+GEMINI_API_KEY=...          # for AI hint generation
+VITE_API_URL=               # leave empty for frontend-only mode
+                            # set to http://localhost:3001 to use backend
+
+API_PORT=3001               # server port
+FRONTEND_ORIGIN=http://localhost:5173
+JWT_SECRET=change-me-in-production
+```
+
+## MOHS Difficulty Scale
+
+Problems are scored in MOHS units (-60 to +60, multiples of 5):
+
+| Range  | Level                              |
+|--------|------------------------------------|
+| -60–0  | Too easy for competitions          |
+|  5–15  | National competition easy (IMO P1) |
+| 20–35  | National competition hard / IMO P2 |
+| 40–50  | IMO P3 / Hardest national          |
+| 55–60  | IMO P6 ceiling                     |
+
+When a user rates a problem, the stored MOHS is updated:
+`new_mohs = round5(clamp(old * 0.70 + perceived * 0.30))`
+
+Source-based floors/ceilings prevent a single rating from moving an IMO P6 too far down.
+
+## Adding Problems
+
+Edit `data/problems.seed.json` then re-run:
+
+```bash
+cd server && npm run db:seed
+```
+
+Each problem needs: `statement`, `topic`, `mohs`, `hint1`, `hint2`, `hint3`, and optionally `source_ref` and `source_tag`.

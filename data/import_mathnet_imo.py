@@ -1,323 +1,220 @@
-#!/usr/bin/env python3
 """
-Import IMO problems from ShadenA/MathNet (HF dataset) into mathforces.db.
+Import IMO problems from the ShadenA/MathNet Hugging Face dataset into the
+MathForces SQLite database.
 
-Usage (from repo root, with .venv active):
-    python3 data/import_mathnet_imo.py [--dry-run]
+Usage (from repo root):
+    python data/import_mathnet_imo.py [--db server/data/mathforces.db]
 
-Strategy for problem ordering within a year:
-  1. Try to parse "Problem N" (N=1..6) from the first 300 chars of problem_markdown.
-  2. Fall back: stable alphabetical sort of the HF row `id` field within the year.
-  Prints a warning table when any year does not contain exactly 6 problems;
-  aborts the insert for that year so MOHS mapping is never silently wrong.
+The script is fully idempotent: it deduplicates by the first 80 characters of
+the problem statement, matching the logic in server/src/db/seed.ts.
 
-MOHS + topic:
-  - Years 2000–2025: from data/imo_mohs.csv (topic + MOHS per P1–P6).
-  - Years before 2000: mohs=20, topic inferred from topics_flat top-level domain.
-  Both: mohs_locked=1 to prevent user-rating drift.
-
-Figures: ![](attached_image_N.png) patterns are stripped from problem_markdown
-  and "(Diagram omitted.)" is appended when at least one was removed.
-
-Hints: three empty strings ('') — the schema default, acceptable since there are
-  no hints in MathNet v0.
-
-Deduplication: skips any row whose source_ref ("IMO YYYY Problem N") already
-  exists in the database.  Run again safely after adding new years.
+Requirements:
+    pip install -r data/requirements.txt
 """
-
-from __future__ import annotations
 
 import argparse
-import csv
+import os
 import re
 import sqlite3
 import sys
 from pathlib import Path
 
-# ── Paths ────────────────────────────────────────────────────────────────────
-
-REPO_ROOT = Path(__file__).resolve().parents[1]
-DB_PATH   = REPO_ROOT / "server" / "data" / "mathforces.db"
-CSV_PATH  = REPO_ROOT / "data" / "imo_mohs.csv"
-
-# ── Topic mapping ────────────────────────────────────────────────────────────
-
-LETTER_TO_TOPIC: dict[str, str] = {
-    "G": "Geometry",
-    "A": "Algebra",
-    "C": "Combinatorics",
-    "N": "Number Theory",
+# ---------------------------------------------------------------------------
+# Topic mapping: MathNet top-level domain → MathForces topic enum
+# ---------------------------------------------------------------------------
+TOPIC_MAP: dict[str, str] = {
+    "Algebra": "Algebra",
+    "Geometry": "Geometry",
+    "Number Theory": "Number Theory",
+    # MathNet uses "Discrete Mathematics" for combinatorics-type problems
+    "Discrete Mathematics": "Combinatorics",
+    # Fallbacks for anything else in the taxonomy
+    "Combinatorics": "Combinatorics",
+    "Calculus": "Algebra",
+    "Analysis": "Algebra",
+    "Probability": "Combinatorics",
+    "Statistics": "Combinatorics",
+    "Linear Algebra": "Algebra",
+    "Abstract Algebra": "Algebra",
 }
 
-FLAT_TO_TOPIC: dict[str, str] = {
-    "geometry":      "Geometry",
-    "algebra":       "Algebra",
-    "combinatorics": "Combinatorics",
-    "number theory": "Number Theory",
-}
+MOHS_IMPORT = 20
+SOURCE_TAG = "IMO"
+REASON = "mathnet_imo_import"
 
-DEFAULT_TOPIC    = "Algebra"
-DEFAULT_MOHS     = 20
-MOHS_STEP        = 5
+# Matches ![alt text](filename) — inline Markdown images from MathNet
+_IMAGE_RE = re.compile(r"!\[([^\]]*)\]\([^)]+\)")
 
 
-def _quantise(v: int) -> int:
-    return round(v / MOHS_STEP) * MOHS_STEP
-
-
-# ── MOHS CSV ─────────────────────────────────────────────────────────────────
-
-def load_mohs_table(csv_path: Path) -> dict[tuple[int, int], tuple[str, int]]:
-    """Return {(year, p_num): (topic, mohs)} from imo_mohs.csv."""
-    table: dict[tuple[int, int], tuple[str, int]] = {}
-    with csv_path.open() as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            # Year column: "IMO 2023" → 2023
-            year = int(row["Year"].replace("IMO ", "").strip())
-            for p in range(1, 7):
-                cell = row[f"P{p}"].strip()
-                # cell format: "(G, 10)"
-                m = re.match(r"\(\s*([GACN])\s*,\s*(\d+)\s*\)", cell)
-                if not m:
-                    raise ValueError(f"Unexpected MOHS cell {cell!r} for IMO {year} P{p}")
-                topic = LETTER_TO_TOPIC[m.group(1)]
-                mohs  = _quantise(int(m.group(2)))
-                table[(year, p)] = (topic, mohs)
-    return table
-
-
-# ── Topic inference from topics_flat (pre-2000 fallback) ─────────────────────
-
-def infer_topic(topics_flat: list[str]) -> str:
-    """Extract the closest of our 4 DB topics from a MathNet topics_flat list."""
-    for path in topics_flat:
-        top = path.split(">")[0].strip().lower()
-        if top in FLAT_TO_TOPIC:
-            return FLAT_TO_TOPIC[top]
-        # partial keyword sweep for unusual capitalisation
-        for key, val in FLAT_TO_TOPIC.items():
-            if key in top:
-                return val
-    return DEFAULT_TOPIC
-
-
-# ── Figure stripping ──────────────────────────────────────────────────────────
-
-_IMG_PATTERN = re.compile(r"!\[.*?\]\(attached_image_\d+\.png\)")
-
-def strip_figures(text: str) -> str:
-    cleaned, n = _IMG_PATTERN.subn("", text)
-    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned).strip()
-    if n:
-        cleaned += "\n\n(Diagram omitted.)"
+def strip_images(text: str, has_images: bool) -> str:
+    """Remove Markdown image syntax; append a note if figures were present."""
+    cleaned = _IMAGE_RE.sub("", text).strip()
+    if has_images and _IMAGE_RE.search(text):
+        cleaned += "\n\n*(Figure omitted.)*"
     return cleaned
 
 
-# ── Problem-number parsing ─────────────────────────────────────────────────────
-
-_PROB_NUM_RE = re.compile(
-    r"""
-    (?:
-        \bProblem\b[\s\W]*([1-6])\b   # "Problem 3", "Problem. 3", etc.
-      | \bP\s*([1-6])\b               # "P3", "P 3"
-      | ^([1-6])[.\)]\s               # "3." or "3)" at line start
-    )
-    """,
-    re.VERBOSE | re.MULTILINE | re.IGNORECASE,
-)
-
-def parse_problem_number(markdown: str) -> int | None:
-    """Return problem number 1–6 if clearly detectable in the first 300 chars."""
-    snippet = markdown[:300]
-    m = _PROB_NUM_RE.search(snippet)
-    if m:
-        val = m.group(1) or m.group(2) or m.group(3)
-        n = int(val)
-        if 1 <= n <= 6:
-            return n
+def map_topic(topics_flat: list[str]) -> str | None:
+    """Return a MathForces topic string from MathNet's topics_flat list."""
+    for path in topics_flat:
+        top = path.split(" > ")[0].strip()
+        if top in TOPIC_MAP:
+            return TOPIC_MAP[top]
     return None
 
 
-# ── Year-group ordering ──────────────────────────────────────────────────────
+def load_dataset_imo(hf_cache: str | None) -> object:
+    """Load the MathNet IMO split, optionally directing the HF cache."""
+    env = os.environ.copy()
+    if hf_cache:
+        env["HF_DATASETS_CACHE"] = hf_cache
 
-def assign_problem_numbers(
-    rows: list[dict],
-    year: int,
-) -> list[tuple[int, dict]] | None:
-    """
-    Return [(p_num, row), ...] sorted P1–P6 for `rows` (all from the same year),
-    or None if the assignment is ambiguous / count ≠ 6.
-    """
-    if len(rows) != 6:
-        return None
+    # Apply env override before importing datasets so the cache path is used
+    if hf_cache:
+        os.environ["HF_DATASETS_CACHE"] = hf_cache
 
-    parsed: dict[int, list[dict]] = {}
-    unparsed: list[dict] = []
+    from datasets import load_dataset  # type: ignore
 
-    for row in rows:
-        n = parse_problem_number(row["problem_markdown"])
-        if n is not None:
-            parsed.setdefault(n, []).append(row)
-        else:
-            unparsed.append(row)
-
-    # Clean path: all 6 parsed with no collisions
-    if not unparsed and len(parsed) == 6 and all(len(v) == 1 for v in parsed.values()):
-        return sorted((n, v[0]) for n, v in parsed.items())
-
-    # Partial parse: some parsed, some not — fall back to stable sort entirely
-    # Use the HF row `id` field (4-char base36) which is stable across rebuilds
-    stable = sorted(rows, key=lambda r: r["id"])
-    return list(enumerate(stable, start=1))
+    print("Downloading ShadenA/MathNet 'IMO' split from Hugging Face…")
+    ds = load_dataset("ShadenA/MathNet", "IMO", split="train")
+    print(f"  Downloaded {len(ds)} rows.")
+    return ds
 
 
-# ── Hints placeholder ─────────────────────────────────────────────────────────
+def run_import(db_path: Path, hf_cache: str | None) -> None:
+    ds = load_dataset_imo(hf_cache)
 
-HINT_PLACEHOLDER = ""   # schema allows empty string default
-
-
-# ── Main ──────────────────────────────────────────────────────────────────────
-
-def main(dry_run: bool = False) -> None:
-    # Lazy import so users see a clean error if not installed
-    try:
-        from data.mathnet_problems import load_mathnet_text_only
-    except ImportError:
-        sys.path.insert(0, str(REPO_ROOT))
-        from data.mathnet_problems import load_mathnet_text_only
-
-    print("Loading MOHS table …")
-    mohs_table = load_mohs_table(CSV_PATH)
-    covered_years = {y for y, _ in mohs_table}
-
-    print("Downloading/caching MathNet IMO config …")
-    ds = load_mathnet_text_only("IMO")
-    print(f"  {len(ds):,} rows loaded from HF.")
-
-    # ── Group rows by year ────────────────────────────────────────────────────
-    by_year: dict[int, list[dict]] = {}
-    skipped_parse = 0
-    for row in ds:
-        comp = row.get("competition", "")
-        m = re.search(r"\b(\d{4})\b", comp)
-        if not m:
-            print(f"  [WARN] Cannot parse year from competition={comp!r} — skipping row")
-            skipped_parse += 1
-            continue
-        year = int(m.group(1))
-        by_year.setdefault(year, []).append(row)
-
-    # ── Validate counts ───────────────────────────────────────────────────────
-    bad_years = {y: len(v) for y, v in by_year.items() if len(v) != 6}
-    if bad_years:
-        print("\n[WARN] The following years do NOT have exactly 6 problems in the IMO config:")
-        print(f"  {'Year':<8} {'Count'}")
-        for y, c in sorted(bad_years.items()):
-            print(f"  {y:<8} {c}")
-        print("  These years will be SKIPPED to avoid wrong P-number → MOHS mapping.")
-
-    print(f"\nYears found: {sorted(by_year)} ({len(by_year)} total)\n")
-
-    # ── Open DB ───────────────────────────────────────────────────────────────
-    if not DB_PATH.exists():
-        print(f"[ERROR] Database not found at {DB_PATH}", file=sys.stderr)
-        sys.exit(1)
-
-    con = sqlite3.connect(str(DB_PATH))
+    con = sqlite3.connect(db_path)
+    con.execute("PRAGMA journal_mode = WAL")
     con.execute("PRAGMA foreign_keys = ON")
-    cur = con.cursor()
 
-    existing = {
-        row[0]
-        for row in cur.execute("SELECT source_ref FROM problems WHERE source_ref IS NOT NULL")
+    # Ensure the solution column exists (mirrors database.ts migration)
+    try:
+        con.execute("ALTER TABLE problems ADD COLUMN solution TEXT NOT NULL DEFAULT ''")
+        con.commit()
+    except sqlite3.OperationalError:
+        pass  # column already present
+
+    # Build deduplication set from current DB contents
+    existing: set[str] = {
+        row[0][:80]
+        for row in con.execute("SELECT statement FROM problems").fetchall()
     }
-    print(f"Existing problems with source_ref: {len(existing)}")
 
-    # ── Insert ────────────────────────────────────────────────────────────────
     inserted = 0
     skipped_dup = 0
-    skipped_bad_year = 0
+    skipped_lang = 0
+    skipped_topic = 0
 
-    for year in sorted(by_year):
-        rows = by_year[year]
+    rows_to_insert: list[tuple] = []
 
-        if year in bad_years:
-            skipped_bad_year += len(rows)
+    for row in ds:
+        # English-only filter
+        lang = row.get("language")
+        if lang != "English":
+            skipped_lang += 1
             continue
 
-        assignments = assign_problem_numbers(rows, year)
-        if assignments is None:
-            print(f"  [WARN] {year}: could not assign P1–P6 — skipping year")
-            skipped_bad_year += len(rows)
+        statement_raw: str = row.get("problem_markdown") or ""
+        has_images: bool = len(row.get("images") or []) > 0
+        statement = strip_images(statement_raw, has_images)
+
+        if not statement:
+            skipped_topic += 1
             continue
 
-        for p_num, row in assignments:
-            source_ref = f"IMO {year} Problem {p_num}"
-            source_tag = f"IMO_P{p_num}"
+        prefix = statement[:80]
+        if prefix in existing:
+            skipped_dup += 1
+            continue
 
-            if source_ref in existing:
-                skipped_dup += 1
-                continue
-
-            # MOHS + topic
-            if year in covered_years:
-                topic, mohs = mohs_table[(year, p_num)]
-            else:
-                topic = infer_topic(row.get("topics_flat") or [])
-                mohs  = _quantise(DEFAULT_MOHS)
-
-            # Statement
-            statement = strip_figures(row["problem_markdown"])
-
-            if dry_run:
-                print(
-                    f"  [DRY-RUN] {source_ref}  topic={topic:<14} mohs={mohs:>3}"
-                    f"  chars={len(statement)}"
-                )
-                inserted += 1
-                continue
-
-            cur.execute(
-                """
-                INSERT INTO problems
-                  (statement, topic, source_ref, source_tag,
-                   hint1, hint2, hint3, mohs, mohs_locked)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
-                """,
-                (
-                    statement, topic, source_ref, source_tag,
-                    HINT_PLACEHOLDER, HINT_PLACEHOLDER, HINT_PLACEHOLDER,
-                    mohs,
-                ),
+        topic = map_topic(row.get("topics_flat") or [])
+        if topic is None:
+            skipped_topic += 1
+            print(
+                f"  [skip] No mappable topic for: {prefix[:50]!r}  "
+                f"(topics_flat={row.get('topics_flat')})"
             )
-            problem_id = cur.lastrowid
-            cur.execute(
-                """
-                INSERT INTO problem_difficulty_events
-                  (problem_id, old_mohs, new_mohs, reason)
-                VALUES (?, 0, ?, 'mathnet_imo_import')
-                """,
-                (problem_id, mohs),
-            )
-            existing.add(source_ref)
-            inserted += 1
+            continue
 
-    if not dry_run:
-        con.commit()
+        competition: str = row.get("competition") or ""
+        country: str = row.get("country") or ""
+        mathnet_id: str = row.get("id") or ""
+        source_ref = f"{competition} — {country} (MathNet id: {mathnet_id})"
+
+        solutions: list[str] = row.get("solutions_markdown") or []
+        solution_raw = solutions[0] if solutions else ""
+        solution = strip_images(solution_raw, has_images) if solution_raw else ""
+
+        rows_to_insert.append((
+            statement, topic, source_ref, SOURCE_TAG,
+            "", "", "",   # hint1, hint2, hint3
+            solution,
+            MOHS_IMPORT,
+        ))
+        existing.add(prefix)
+
+    # Insert in a single transaction
+    cur = con.cursor()
+    for params in rows_to_insert:
+        cur.execute(
+            """
+            INSERT INTO problems
+              (statement, topic, source_ref, source_tag,
+               hint1, hint2, hint3, solution, mohs)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            params,
+        )
+        problem_id = cur.lastrowid
+        cur.execute(
+            """
+            INSERT INTO problem_difficulty_events
+              (problem_id, old_mohs, new_mohs, reason)
+            VALUES (?, 0, ?, ?)
+            """,
+            (problem_id, MOHS_IMPORT, REASON),
+        )
+        inserted += 1
+
+    con.commit()
     con.close()
 
     print(
-        f"\n{'[DRY-RUN] ' if dry_run else ''}Done — "
-        f"inserted: {inserted}, "
-        f"skipped (duplicate): {skipped_dup}, "
-        f"skipped (bad year / parse): {skipped_bad_year + skipped_parse}"
+        f"\nImport complete:\n"
+        f"  Inserted : {inserted}\n"
+        f"  Skipped (duplicate)  : {skipped_dup}\n"
+        f"  Skipped (non-English): {skipped_lang}\n"
+        f"  Skipped (no topic)   : {skipped_topic}\n"
     )
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--dry-run", action="store_true", help="Print what would be inserted without writing to DB")
+def main() -> None:
+    repo_root = Path(__file__).resolve().parent.parent
+    default_db = repo_root / "server" / "data" / "mathforces.db"
+
+    parser = argparse.ArgumentParser(description="Import MathNet IMO problems into MathForces SQLite DB.")
+    parser.add_argument(
+        "--db",
+        type=Path,
+        default=default_db,
+        help=f"Path to SQLite database (default: {default_db})",
+    )
+    parser.add_argument(
+        "--hf-cache",
+        type=str,
+        default=None,
+        help="Override Hugging Face datasets cache directory (useful in restricted environments).",
+    )
     args = parser.parse_args()
-    main(dry_run=args.dry_run)
+
+    if not args.db.exists():
+        print(f"Error: database not found at {args.db}", file=sys.stderr)
+        print("Run the server once first so it creates the schema, then re-run this script.", file=sys.stderr)
+        sys.exit(1)
+
+    run_import(args.db, args.hf_cache)
+
+
+if __name__ == "__main__":
+    main()
