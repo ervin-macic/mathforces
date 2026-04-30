@@ -65,6 +65,89 @@ FRONTEND_ORIGIN=http://localhost:5173,http://localhost:3000,http://localhost:300
 JWT_SECRET=change-me-in-production
 ```
 
+## Deploy to Railway
+
+Two services: **API** (Express + SQLite) and **Frontend** (static Vite build).
+
+### 1 · Push to GitHub
+
+```bash
+git push origin revamp
+```
+
+### 2 · API service
+
+In the Railway dashboard:
+
+| Setting | Value |
+|---|---|
+| Root directory | `server` |
+| Build command | `npm ci && npm run build` |
+| Start command | `npm start` |
+| Health check path | `/health` |
+
+**Volume** — attach a Railway volume mounted at `/app/data`.
+The database resolves to that path automatically (`dist/db/` → `../../data` = `/app/data`).
+
+**Variables** (API service only):
+
+```
+JWT_SECRET=<long random string>
+FRONTEND_ORIGIN=https://<your-frontend>.up.railway.app
+```
+
+Generate a secret: `node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"`
+
+### 3 · Seed the database (one-time)
+
+Once the API service is deployed and the volume is mounted, open a Railway shell for the API service and run:
+
+```bash
+npm run db:seed
+```
+
+This is idempotent — safe to run multiple times. It loads all 275 problems from
+`data/problems.seed.json` (committed in the repo, so it is available at build time).
+
+### 4 · Frontend service
+
+| Setting | Value |
+|---|---|
+| Root directory | *(repo root)* |
+| Build command | `npm ci && npm run build` |
+| Publish directory | `dist` |
+
+**Variables** (frontend service, build-time):
+
+```
+VITE_API_URL=https://<your-api>.up.railway.app
+```
+
+Changing `VITE_API_URL` requires a frontend rebuild.
+
+### 5 · Verify
+
+```bash
+# Health check
+curl https://<your-api>.up.railway.app/health
+
+# CORS (replace origin with your frontend URL)
+curl -H "Origin: https://<your-frontend>.up.railway.app" \
+     -H "Access-Control-Request-Method: GET" \
+     -X OPTIONS \
+     https://<your-api>.up.railway.app/api/problems \
+     -I
+# Expect: Access-Control-Allow-Origin header matching your frontend URL
+```
+
+Or run the bundled script (fill in your URLs first):
+
+```bash
+API_URL=https://<your-api>.up.railway.app \
+FRONTEND_URL=https://<your-frontend>.up.railway.app \
+bash scripts/verify-deploy.sh
+```
+
 ## MOHS Difficulty Scale
 
 Problems are scored in MOHS units (-60 to +60, multiples of 5):
