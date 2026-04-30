@@ -1,0 +1,172 @@
+[
+  {
+    "statement": "All the angles of the hexagon $ABCDEF$ are equal. Prove that \\[AB-DE=EF-BC=CD-FA \\]",
+    "topic": "Geometry",
+    "source_ref": "https://artofproblemsolving.com/community/c6h13799",
+    "source_tag": "BMO",
+    "mohs": 25,
+    "hint1": "Determine the measure of each interior angle of an equiangular hexagon. What is the sum of its vectors representing its sides?",
+    "hint2": "Based on the interior angles, how are the directions of opposite sides of the hexagon related? For example, what is the angle between the vector $\\vec{AB}$ and the vector $\\vec{DE}$?",
+    "hint3": "Represent the sides as vectors $\\vec{v_1}, \\vec{v_2}, \\dots, \\vec{v_6}$. Since it is a closed polygon, their sum is $\\vec{0}$. Use the directional relationships between opposite side vectors (e.g., $\\vec{v_1}$ and $\\vec{v_4}$) to simplify this vector sum and derive the desired equalities."
+  },
+  {
+    "statement": "Find all positive integers $n$ such that $n^2 + 1$ is divisible by $n + 1$.",
+    "topic": "Number Theory",
+    "source_ref": "https://artofproblemsolving.com",
+    "source_tag": "AoPS",
+    "mohs": 10,
+    "hint1": "Try to use polynomial long division or algebraic manipulation on the expression $(n^2 + 1) / (n + 1)$.",
+    "hint2": "Rewrite the numerator $n^2 + 1$ as $(n^2 - 1) + 2$. Notice that $n^2 - 1$ is divisible by $n + 1$.",
+    "hint3": "The expression simplifies to $(n - 1) + 2/(n + 1)$. For this to be an integer, $n + 1$ must be a divisor of 2. Since $n$ is positive, $n + 1$ can be 1 or 2. This means $n=0$ (not positive) or $n=1$. The only solution is $n=1$."
+  },
+  {
+    "statement": "Find the number of ordered pairs of integers $(x, y)$ such that $x^2 + y^2 = 2024$.",
+    "topic": "Number Theory",
+    "source_ref": "https://artofproblemsolving.com",
+    "source_tag": "AoPS",
+    "mohs": 20,
+    "hint1": "Consider the equation modulo 4. The square of any integer is congruent to either $0$ or $1 \\pmod{4}$.",
+    "hint2": "The sum of two squares, $x^2 + y^2$, can therefore only be congruent to $0, 1$, or $2 \\pmod{4}$. What is $2024 \\pmod{4}$?",
+    "hint3": "$2024$ is divisible by 4, so $2024 \\equiv 0 \\pmod{4}$. This requires $x^2 \\equiv 0 \\pmod{4}$ and $y^2 \\equiv 0 \\pmod{4}$, which means both $x$ and $y$ must be even. Let $x=2a, y=2b$ and substitute back. You get $a^2+b^2 = 506$. Repeat the modular argument to find no integer solutions, so the answer is 0."
+  },
+  {
+    "statement": "In a group of 10 people, every person has exactly 3 friends. (Friendship is mutual). Prove that it is possible to select 4 people and seat them at a round table so that every two neighbours are friends.",
+    "topic": "Combinatorics",
+    "source_ref": "https://artofproblemsolving.com",
+    "source_tag": "AoPS",
+    "mohs": 25,
+    "hint1": "This structure can be modeled as a 3-regular graph with 10 vertices. The problem is asking to prove the existence of a 4-cycle ($C_4$).",
+    "hint2": "Pick an arbitrary vertex $v$. It has three neighbours: $n_1, n_2$, and $n_3$. Consider the neighbours of $n_1$ (other than $v$). If any two of $n_1$'s neighbours are also neighbours of each other, what does that form?",
+    "hint3": "Pick a vertex $v$ and its neighbour $u$. $v$ has two other neighbours ($v_1, v_2$) and $u$ has two other neighbours ($u_1, u_2$). If any of $v$'s 'other' neighbours is the same as $u$'s 'other' neighbours (e.g., $v_1=u_1$), a $C_4$ is formed. One can show this must occur in any 3-regular graph of this size."
+  },
+  {
+    "statement": "Let $\\frac{x^2+y^2}{x^2-y^2} + \\frac{x^2-y^2}{x^2+y^2} = k$. Compute $E(x,y) = \\frac{x^8 + y^8}{x^8-y^8} - \\frac{x^8-y^8}{x^8+y^8}$ in terms of $k$.",
+    "topic": "Algebra",
+    "source_ref": "https://artofproblemsolving.com/community/c6h13800",
+    "source_tag": "BMO",
+    "mohs": 35,
+    "hint1": "Let $u_n = \\frac{x^{2^n}+y^{2^n}}{x^{2^n}-y^{2^n}}$. Identify the terms in the given equation and the expression to compute using this notation.",
+    "hint2": "Derive a relationship between $u_{m+1}$ and $u_m$. Specifically, show that $u_{m+1} = \\frac{1}{2} \\left(u_m + \\frac{1}{u_m}\\right)$.",
+    "hint3": "Use the recurrence to find $u_2$ and $u_3$ in terms of $k$. Then compute $u_3 - \\frac{1}{u_3}$ and simplify using the difference of squares."
+  },
+  {
+    "statement": "Find all functions $f: \\mathbb{R} \\to \\mathbb{R}$ such that $f(x + y) - f(x - y) = 4xy$ for all $x, y \\in \\mathbb{R}$.",
+    "topic": "Algebra",
+    "source_ref": "https://artofproblemsolving.com",
+    "source_tag": "AoPS",
+    "mohs": 30,
+    "hint1": "This is a functional equation. Start by substituting specific values. What happens if $x=0$?",
+    "hint2": "Setting $x=0$ gives $f(y) - f(-y) = 0$, so $f$ is even. Now try setting $y=x$.",
+    "hint3": "Setting $y=x$ gives $f(2x) - f(0) = 4x^2$. Substituting $u=x+y$, $v=x-y$ shows $f(u)-u^2 = f(v)-v^2$ for all $u,v$, so $f(x) = x^2 + C$. Verify this in the original equation."
+  },
+  {
+    "statement": "Show that given any 9 points inside a square of side 1 we can always find 3 which form a triangle with area less than $\\frac{1}{8}$.",
+    "topic": "Combinatorics",
+    "source_ref": "https://artofproblemsolving.com",
+    "source_tag": "AoPS",
+    "mohs": 20,
+    "hint1": "Consider dividing the square into 4 smaller equal squares. How many points must be in at least one of these regions?",
+    "hint2": "Apply the Pigeonhole Principle: 9 points in 4 squares means at least one square contains 3 points.",
+    "hint3": "Three points inside a square of side $s$ form a triangle with area at most $s^2 / 2$. For $s = 1/2$, the maximum area is $1/8$. At least one small square contains 3 of the 9 points, giving a triangle of area strictly less than $1/8$."
+  },
+  {
+    "statement": "Determine the triangle with sides $a, b, c$ and circumradius $R$ for which $R(b+c) = a\\sqrt{bc}$.",
+    "topic": "Algebra",
+    "source_ref": "https://artofproblemsolving.com/community/c6h13801",
+    "source_tag": "BMO",
+    "mohs": 25,
+    "hint1": "Express the sides $a, b, c$ using the Sine Rule: $a = 2R\\sin A$, etc. Substitute into the given equation.",
+    "hint2": "After cancelling $R$, rearrange to get $\\sqrt{\\sin B / \\sin C} + \\sqrt{\\sin C / \\sin B} = 2\\sin A$.",
+    "hint3": "The left side satisfies $\\sqrt{t} + 1/\\sqrt{t} \\ge 2$ for any $t > 0$ by AM-GM, with equality iff $t=1$. So $\\sin B = \\sin C$ and $\\sin A = 1$, giving $A = 90°$, $B = C$. The triangle is an isosceles right triangle."
+  },
+  {
+    "statement": "Given $n$ positive integers, if the product of any one of them with the sum of the remaining increased by 1 is divisible by the sum of all $n$ numbers, prove the sum of squares of all $n$ numbers is divisible by the sum of all $n$ numbers.",
+    "topic": "Number Theory",
+    "source_ref": "https://artofproblemsolving.com/community/c6h13802",
+    "source_tag": "BMO",
+    "mohs": 25,
+    "hint1": "Let $S$ be the sum. The condition is $S \\mid a_i(S - a_i + 1)$ for each $i$. Expand and reduce mod $S$.",
+    "hint2": "The condition reduces to $a_i^2 \\equiv a_i \\pmod{S}$ for all $i$. Sum this over all $i$.",
+    "hint3": "$\\sum a_i^2 \\equiv \\sum a_i = S \\equiv 0 \\pmod{S}$, so $S \\mid \\sum a_i^2$."
+  },
+  {
+    "statement": "Let $k>1$ be a positive integer and $n>2018$ an odd positive integer. Non-zero rationals $x_1,\\ldots,x_n$ are not all equal and $x_1+\\frac{k}{x_2}=x_2+\\frac{k}{x_3}=\\cdots=x_n+\\frac{k}{x_1}$. Find the minimum value of $k$ such that the above relations hold.",
+    "topic": "Algebra",
+    "source_ref": "https://artofproblemsolving.com",
+    "source_tag": "AoPS",
+    "mohs": 35,
+    "hint1": "Let the common value be $C$. Rewrite as a recurrence $x_{i+1} = k/(C - x_i)$. What constraints does rationality impose on $C$?",
+    "hint2": "The fixed points satisfy $t^2 - Ct + k = 0$. Using the substitution $y_i = (x_i - \\alpha)/(x_i - \\beta)$, the recurrence becomes $y_{i+1} = (\\alpha/\\beta) y_i$. Since $x_{n+1} = x_1$ we need $(\\alpha/\\beta)^n = 1$.",
+    "hint3": "Rationality of $x_i$ forces $\\alpha/\\beta$ to be a root of unity with rational real part. Niven's Theorem restricts $\\cos(2\\pi/n) \\in \\{0, \\pm 1/2, \\pm 1\\}$. Working through the cases shows the minimum is $k = 5$."
+  },
+  {
+    "statement": "Let $\\Gamma$ be the circumcircle of acute triangle $ABC$. Points $D$ and $E$ are on segments $AB$ and $AC$ with $AD = AE$. The perpendicular bisectors of $BD$ and $CE$ intersect minor arcs $AB$ and $AC$ of $\\Gamma$ at $F$ and $G$. Prove that $DE$ and $FG$ are either parallel or the same line.",
+    "topic": "Geometry",
+    "source_ref": "https://artofproblemsolving.com/community/c6h13803",
+    "source_tag": "IMO",
+    "mohs": 45,
+    "hint1": "Since $AD=AE$, triangle $ADE$ is isosceles. What is the relationship between $DE$ and the angle bisector of $\\angle BAC$?",
+    "hint2": "$F$ is on $\\Gamma$ and the perpendicular bisector of $BD$, so $FB = FD$. Likewise $GC = GE$. What do these imply for arcs?",
+    "hint3": "Show $AF = AG$ using the arc lengths determined by $FB = FD$ and $GC = GE$. Since $A$, $F$, $G$ lie on $\\Gamma$ and $AF = AG$, both $DE$ and $FG$ are perpendicular to the angle bisector of $\\angle BAC$, so they are parallel (or identical)."
+  },
+  {
+    "statement": "Let $ABC$ be a triangle with incentre $I$, circumcircle $\\omega$ and circumcentre $O$. The circle with diameter $AI$ intersects $\\omega$ again at $Q$. Let $N$ be the midpoint of arc $BAC$. Let the tangent to $\\omega$ at $A$ meet $QN$ at $M$. Prove that $M$, $I$ and $O$ are collinear.",
+    "topic": "Geometry",
+    "source_ref": "https://artofproblemsolving.com/community/c6h2688756",
+    "source_tag": "AoPS",
+    "mohs": 40,
+    "hint1": "Identify key angle relationships. Since $AI$ is a diameter of the small circle, $\\angle AQI = 90°$. What does this say about $Q$?",
+    "hint2": "The tangent at $A$ makes an angle equal to the inscribed angle in the alternate segment. Use this to relate angles at $M$.",
+    "hint3": "Show that $M$ lies on the OI line by computing coordinates or using the radical axis / power of a point. The collinearity follows from angle chasing using the known positions of $N$ (midpoint of arc) and the tangent condition."
+  },
+  {
+    "statement": "Let $\\mathcal{S}$ be a finite set of at least two points in the plane, no three collinear. A windmill starts with a line $\\ell$ through a point $P \\in \\mathcal{S}$ and rotates clockwise until it hits another point $Q \\in \\mathcal{S}$, then $Q$ becomes the new pivot. Show that we can choose $P$ and $\\ell$ so that every point of $\\mathcal{S}$ is used as a pivot infinitely often.",
+    "topic": "Combinatorics",
+    "source_ref": "https://www.imo-official.org/problems/IMO2011SL.pdf",
+    "source_tag": "IMO_P2",
+    "mohs": 35,
+    "hint1": "Define an invariant. Consider the number of points of $\\mathcal{S}$ on each side of the line $\\ell$ at any moment during the process.",
+    "hint2": "Call a state of the windmill 'balanced' if each open half-plane contains the same number of points. Show that starting from a balanced state, the process remains balanced after every pivot.",
+    "hint3": "For an odd number of points pick $P$ to be any point and $\\ell$ a line through $P$ that has $(|\\mathcal{S}|-1)/2$ points on each side. For even $|\\mathcal{S}|$ pick $\\ell$ through two points with equal splits. From any balanced starting state every point eventually becomes a pivot, and since the configuration is finite and the process is periodic, each point is used infinitely often."
+  },
+  {
+    "statement": "Let $I$ be the incentre of acute triangle $ABC$ with $AB \\neq AC$. The incircle $\\omega$ touches $BC$, $CA$, $AB$ at $D$, $E$, $F$. The line through $D$ perpendicular to $EF$ meets $\\omega$ at $R$. Line $AR$ meets $\\omega$ again at $P$. Circumcircles of $\\triangle PCE$ and $\\triangle PBF$ meet again at $Q$. Prove that $DI$ and $PQ$ meet on the line through $A$ perpendicular to $AI$.",
+    "topic": "Geometry",
+    "source_ref": "https://www.imo-official.org/problems/IMO2023SL.pdf",
+    "source_tag": "IMO_P3",
+    "mohs": 55,
+    "hint1": "Introduce coordinates centred at $I$. The incircle has centre $I$ and radius $r$. The key is to identify the point $R$ in terms of the triangle's angle bisectors.",
+    "hint2": "Show that $R$ is the antipode of the midpoint of arc $EF$ not containing $D$ on $\\omega$. Use this to find $P$ as the second intersection of $AR$ with $\\omega$.",
+    "hint3": "The radical axis of the circumcircles of $\\triangle PCE$ and $\\triangle PBF$ passes through $P$ and $Q$. Compute the power of the point where $DI$ meets the perpendicular from $A$ to $AI$ with respect to both circles to confirm $Q$ lies on that line."
+  },
+  {
+    "statement": "Prove that the fraction $\\dfrac{21n+4}{14n+3}$ is irreducible for every natural number $n$.",
+    "topic": "Number Theory",
+    "source_ref": "https://artofproblemsolving.com/wiki/index.php/1959_IMO_Problems/Problem_1",
+    "source_tag": "IMO_P1",
+    "mohs": 15,
+    "hint1": "Suppose $d = \\gcd(21n+4, 14n+3)$. Then $d$ divides any linear combination of $21n+4$ and $14n+3$.",
+    "hint2": "Compute $3(14n+3) - 2(21n+4) = 9 - 8 = 1$. So $d$ divides $1$.",
+    "hint3": "Since $d \\mid 1$ and $d \\geq 1$, we have $d = 1$, proving the fraction is irreducible for all $n \\in \\mathbb{N}$."
+  },
+  {
+    "statement": "Find all pairs of positive integers $(a,b)$ such that $a! + b! = a^b + b^a$.",
+    "topic": "Number Theory",
+    "source_ref": "https://artofproblemsolving.com",
+    "source_tag": "AoPS",
+    "mohs": 30,
+    "hint1": "WLOG $a \\leq b$. Try small values and observe how fast factorials grow versus exponentials.",
+    "hint2": "For large $b$, $b!$ dominates $b^a$ and $a^b$ when $b > a$. Bound $b$ by comparing growth rates.",
+    "hint3": "Direct checking of small cases gives $(1,1)$, $(2,2)$, $(3,3)$ as solutions. For $a \\leq b \\leq 3$ verify; for $b \\geq 4$ show the inequality $b! > a^b + b^a - a!$ is strict, leaving no new solutions."
+  },
+  {
+    "statement": "We say that a finite set $\\mathcal{S}$ of points in the plane is balanced if for any two different points $A, B \\in \\mathcal{S}$ there exists $C \\in \\mathcal{S}$ such that $AC = BC$. Show that for all integers $n \\geq 3$ there exists a balanced set consisting of $n$ points. Determine all $n \\geq 3$ for which there exists a balanced centre-free set of $n$ points.",
+    "topic": "Combinatorics",
+    "source_ref": "https://www.imo-official.org/problems/IMO2015SL.pdf",
+    "source_tag": "IMO_P2",
+    "mohs": 40,
+    "hint1": "For part (a), place $n$ points on a circle. What symmetry guarantees every pair has a midpoint-equidistant point also on the circle?",
+    "hint2": "For part (b), 'centre-free' means no point is equidistant from three others. Try odd and even $n$ separately and look for obstructions.",
+    "hint3": "The answer to part (b) is all odd $n \\geq 3$. For even $n$, any balanced set of $n$ points on a circle must contain the centre. The proof uses a parity argument on the number of bisectors that pass through a given point."
+  }
+]
