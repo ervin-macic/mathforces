@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { SolvedProblem, Problem } from '../types';
 import Timer from '../components/Timer';
 import TypewriterHint from '../components/TypewriterHint';
@@ -67,6 +67,12 @@ const PlayPage: React.FC<PlayPageProps> = ({
     setLastAction(null);
   }, [problems, lastAction, solvedProblems, sessionSolvedProblems, sessionProblemIds]);
 
+  // Keep a stable ref to the latest goToNextProblem so the animation effect
+  // doesn't need it as a dependency — prevents effect teardown from cancelling
+  // the 20ms timer that restores PROBLEM_VIEW after state updates.
+  const goToNextProblemRef = useRef(goToNextProblem);
+  goToNextProblemRef.current = goToNextProblem;
+
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
     if (animationStage === 'RATING_EXITING' || animationStage === 'PROBLEM_EXITING') {
@@ -74,7 +80,7 @@ const PlayPage: React.FC<PlayPageProps> = ({
         setAnimationStage('PROBLEM_RESETTING');
       }, 150);
     } else if (animationStage === 'PROBLEM_RESETTING') {
-      goToNextProblem();
+      goToNextProblemRef.current();
       setHintLevel(0);
       setIsHintTyping(false);
 
@@ -86,7 +92,8 @@ const PlayPage: React.FC<PlayPageProps> = ({
     }
 
     return () => clearTimeout(timer);
-  }, [animationStage, goToNextProblem]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [animationStage]);
 
   const handleStartSession = () => {
     const randomIndex = Math.floor(Math.random() * problems.length);

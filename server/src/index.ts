@@ -17,8 +17,21 @@ getDb();
 
 const app = express();
 
+// FRONTEND_ORIGIN may be a comma-separated list for multi-port local dev,
+// e.g. "http://localhost:5173,http://localhost:3000,http://localhost:3002"
+const allowedOrigins: string[] = (
+  process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173'
+).split(',').map(s => s.trim()).filter(Boolean);
+
 app.use(cors({
-  origin: process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173',
+  origin: (origin, callback) => {
+    // Allow requests with no Origin header (e.g. same-origin, curl, server-to-server)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS: origin ${origin} not in allowlist`));
+    }
+  },
   credentials: true,
 }));
 app.use(express.json());

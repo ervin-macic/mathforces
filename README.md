@@ -59,7 +59,9 @@ VITE_API_URL=               # leave empty for frontend-only mode
                             # set to http://localhost:3001 to use backend
 
 API_PORT=3001               # server port
-FRONTEND_ORIGIN=http://localhost:5173
+FRONTEND_ORIGIN=http://localhost:5173,http://localhost:3000,http://localhost:3002
+                            # comma-separated list of allowed origins for CORS
+                            # add whichever port Vite binds to on your machine
 JWT_SECRET=change-me-in-production
 ```
 
