@@ -9,6 +9,7 @@ type AnimationStage = 'INTRO' | 'ACTIVE' | 'RATING' | 'RATING_EXITING' | 'ACTIVE
 
 interface CompetitionPageProps {
     problems: Problem[];
+    problemsLoading?: boolean;
     onProblemSolved: (problem: SolvedProblem) => void;
     onSessionEnd: () => void;
     onSessionStart: () => void;
@@ -31,7 +32,13 @@ const CountdownTimer: React.FC<{ seconds: number }> = ({ seconds }) => {
     return <div className="text-3xl font-bold text-accent font-mono tracking-wider">{formatTime(seconds)}</div>;
 };
 
-const CompetitionPage: React.FC<CompetitionPageProps> = ({ problems, onProblemSolved, onSessionEnd, onSessionStart }) => {
+const CompetitionPage: React.FC<CompetitionPageProps> = ({
+    problems,
+    problemsLoading = false,
+    onProblemSolved,
+    onSessionEnd,
+    onSessionStart,
+}) => {
     const [animationStage, setAnimationStage] = useState<AnimationStage>('INTRO');
     const [competitionProblems, setCompetitionProblems] = useState<Problem[]>([]);
     const [timeLeft, setTimeLeft] = useState(COMPETITION_DURATION);
@@ -149,12 +156,29 @@ const CompetitionPage: React.FC<CompetitionPageProps> = ({ problems, onProblemSo
     const { activeClasses, ratingClasses } = getAnimationClasses();
 
     if (animationStage === 'INTRO') {
+        const canStart = !problemsLoading && problems.length >= 3;
         return (
              <div className="flex items-center justify-center min-h-screen">
               <div className="text-center p-8">
                   <h1 className="text-5xl font-bold mb-4">Competition Mode</h1>
                   <p className="text-xl text-light/80 mb-8">You'll have 4.5 hours to solve 3 problems.</p>
-                  <button onClick={startNewCompetition} className="bg-accent text-primary font-bold text-2xl px-12 py-4 rounded-lg hover:opacity-90 transition-all shadow-lg shadow-accent/20 hover:shadow-2xl hover:shadow-accent/40">Start Competition</button>
+                  {problemsLoading && (
+                      <p className="text-light-secondary mb-6">Loading problems from the server…</p>
+                  )}
+                  {!problemsLoading && problems.length < 3 && (
+                      <p className="text-light-secondary mb-6 max-w-lg mx-auto">
+                          Need at least 3 problems in the database. Run the API with a populated{' '}
+                          <code className="text-accent">mathforces.db</code> and set{' '}
+                          <code className="text-accent">VITE_API_URL</code> in <code className="text-accent">.env.local</code>.
+                      </p>
+                  )}
+                  <button
+                      onClick={startNewCompetition}
+                      disabled={!canStart}
+                      className="bg-accent text-primary font-bold text-2xl px-12 py-4 rounded-lg hover:opacity-90 transition-all shadow-lg shadow-accent/20 hover:shadow-2xl hover:shadow-accent/40 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                      Start Competition
+                  </button>
                   <button onClick={onSessionEnd} className="block mx-auto mt-8 text-light-secondary hover:text-accent transition-colors">&larr; Back to Session Settings</button>
               </div>
             </div>
