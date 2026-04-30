@@ -3,6 +3,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 
+// Local dev: load from repo-root .env.local. On Railway this path won't exist,
+// which is fine — Railway injects env vars directly into process.env.
 dotenv.config({ path: path.resolve(__dirname, '../../.env.local') });
 
 import { getDb } from './db/database';
@@ -10,7 +12,8 @@ import problemsRouter from './routes/problems';
 import attemptsRouter from './routes/attempts';
 import usersRouter from './routes/users';
 
-const PORT = process.env.API_PORT ?? 3001;
+// Railway (and most PaaS) injects PORT; API_PORT is the local-dev fallback.
+const PORT = process.env.PORT ?? process.env.API_PORT ?? 3001;
 
 // Initialise DB (applies schema migrations)
 getDb();

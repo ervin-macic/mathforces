@@ -26,4 +26,7 @@ dist-ssr
 
 .hf_cache/
 .venv/
-*.db 
+*.db
+*.db-shm
+*.db-wal
+.bin/

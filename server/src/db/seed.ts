@@ -20,9 +20,11 @@ interface SeedProblem {
   source_ref?: string;
   source_tag?: string;
   mohs: number;
+  mohs_locked?: number;
   hint1: string;
   hint2: string;
   hint3: string;
+  solution?: string;
 }
 
 const SEED_PATH = path.resolve(__dirname, '..', '..', '..', 'data', 'problems.seed.json');
@@ -61,8 +63,8 @@ function main() {
 
   const insert = db.prepare(`
     INSERT OR IGNORE INTO problems
-      (statement, topic, source_ref, source_tag, hint1, hint2, hint3, mohs)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      (statement, topic, source_ref, source_tag, hint1, hint2, hint3, mohs, mohs_locked, solution)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const insertEvent = db.prepare(`
@@ -102,6 +104,8 @@ function main() {
         row.hint2,
         row.hint3,
         mohs,
+        row.mohs_locked ?? 0,
+        row.solution ?? '',
       );
 
       if (info.changes > 0) {
