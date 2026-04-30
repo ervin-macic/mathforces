@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Page, SolvedProblem, Problem } from './types';
 import { MathJaxContext } from 'better-react-mathjax';
-import { DUMMY_SOLVED_PROBLEMS, PROBLEMS } from './constants';
+import { DUMMY_SOLVED_PROBLEMS } from './constants';
+import { computeUpdatedMohs, shouldUpdateMohs } from './lib/mohsService';
+import { fetchProblems } from './lib/apiClient';
 
 import Navbar from './components/Navbar';
 import LoginModal from './components/LoginModal';
@@ -27,27 +29,48 @@ const mathJaxConfig = {
 function App() {
   const [activePage, setActivePage] = useState<Page>(Page.About);
   const [solvedProblems, setSolvedProblems] = useState<SolvedProblem[]>(DUMMY_SOLVED_PROBLEMS);
-  const [appProblems, setAppProblems] = useState<Problem[]>(PROBLEMS);
+  const [appProblems, setAppProblems] = useState<Problem[]>([]);
+  const [problemsReady, setProblemsReady] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [isSessionActive, setIsSessionActive] = useState(false);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const list = await fetchProblems();
+      if (!cancelled) {
+        setAppProblems(list);
+        setProblemsReady(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const handleAddSolvedProblem = (problem: SolvedProblem) => {
     setSolvedProblems(prev => [...prev, problem]);
 
-    // Adjust difficulty in the session state
-    setAppProblems(prevProblems => {
-      const updatedProblems = prevProblems.map(p => {
-        if (p.id === problem.problem.id) {
-          // New difficulty is the average of current difficulty and user rating
-          const newDifficulty = (p.difficulty + problem.difficultyRating) / 2;
-          console.log(`[SIMULATE DB UPDATE] Problem ID ${p.id}: New difficulty is ${newDifficulty.toFixed(2)} (was ${p.difficulty}, user rated ${problem.difficultyRating})`);
-          return { ...p, difficulty: newDifficulty };
-        }
-        return p;
-      });
-      return updatedProblems;
-    });
+    // Only adjust MOHS difficulty for explicitly solved problems, not skips
+    if (problem.status !== 'skipped' && problem.difficultyRating > 0) {
+      setAppProblems(prevProblems =>
+        prevProblems.map(p => {
+          if (p.id !== problem.problem.id) return p;
+          const newMohs = computeUpdatedMohs(
+            p.difficulty,
+            problem.difficultyRating,
+            p.source_tag,
+          );
+          if (!shouldUpdateMohs(p.difficulty, newMohs)) return p;
+          console.log(
+            `[MOHS UPDATE] Problem ${p.id} "${p.topic}": ${p.difficulty} → ${newMohs} MOHS ` +
+            `(user rated ${problem.difficultyRating}/10)`,
+          );
+          return { ...p, difficulty: newMohs };
+        }),
+      );
+    }
   };
   
   const handleNavigate = (page: Page) => {
@@ -76,6 +99,7 @@ function App() {
       case Page.Competition:
         return <CompetitionPage 
             problems={appProblems}
+            problemsLoading={!problemsReady}
             onProblemSolved={handleAddSolvedProblem}
             onSessionStart={() => setIsSessionActive(true)}
             onSessionEnd={() => {
@@ -87,6 +111,7 @@ function App() {
       default:
         return <PlayPage 
             problems={appProblems}
+            problemsLoading={!problemsReady}
             solvedProblems={solvedProblems}
             onProblemSolved={handleAddSolvedProblem}
             onSessionStart={() => setIsSessionActive(true)}
