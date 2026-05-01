@@ -278,8 +278,8 @@ const PlayPage: React.FC<PlayPageProps> = ({
         &larr; End Session
       </button>
       {/* Problem View */}
-      <div className={problemClasses}>
-        <div className="flex flex-col items-center justify-center min-h-screen p-8 pt-24 md:pt-8">
+      <div className={`${problemClasses} overflow-y-auto overscroll-y-contain`}>
+        <div className="flex flex-col items-center justify-center min-h-full p-8 pt-24 md:pt-8">
           <div className="w-full max-w-5xl text-center">
             <div className="flex justify-end items-center mb-10 px-4">
               <Timer key={currentProblemIndex} onTimeUpdate={setCurrentTime} />

@@ -1,3 +1,4 @@
 # Dependencies for data import scripts.
 # Install with: pip install -r data/requirements.txt
 datasets>=4.8.5
+google-genai>=1.74.0
