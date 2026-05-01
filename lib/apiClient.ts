@@ -15,6 +15,13 @@ import { selectNextProblem } from './recommendationEngine';
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL ?? '';
 
+if (typeof window !== 'undefined') {
+  console.log('[MathForces apiClient] init', {
+    VITE_API_URL: API_BASE || '(empty — same-origin relative URLs)',
+    viteMode: (import.meta as any).env?.MODE,
+  });
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
@@ -35,14 +42,25 @@ let _backendAvailable: boolean | null = null;
 async function isBackendAvailable(): Promise<boolean> {
   if (_backendAvailable !== null) return _backendAvailable;
   if (!API_BASE) {
+    console.log(
+      '[MathForces apiClient] no VITE_API_URL — treating backend as unavailable; will use embedded PROBLEMS',
+    );
     _backendAvailable = false;
     return false;
   }
+  const healthUrl = `${API_BASE}/health`;
   try {
-    const res = await fetch(`${API_BASE}/health`, { method: 'GET' });
+    const res = await fetch(healthUrl, { method: 'GET' });
     _backendAvailable = res.ok;
-  } catch {
+    console.log('[MathForces apiClient] GET /health', {
+      healthUrl,
+      ok: res.ok,
+      status: res.status,
+      backendAvailable: _backendAvailable,
+    });
+  } catch (err) {
     _backendAvailable = false;
+    console.warn('[MathForces apiClient] GET /health failed', { healthUrl, err });
   }
   return _backendAvailable;
 }
@@ -51,11 +69,20 @@ async function isBackendAvailable(): Promise<boolean> {
 
 /** Fetch all problems from the API; fall back to in-memory constants. */
 export async function fetchProblems(): Promise<Problem[]> {
-  if (!(await isBackendAvailable())) return PROBLEMS;
+  const backendOk = await isBackendAvailable();
+  if (!backendOk) {
+    console.log(
+      '[MathForces apiClient] fetchProblems → embedded fallback, count:',
+      PROBLEMS.length,
+    );
+    return PROBLEMS;
+  }
   try {
-    return await apiFetch<Problem[]>('/api/problems');
-  } catch {
-    console.warn('[apiClient] Failed to fetch problems; using local constants');
+    const list = await apiFetch<Problem[]>('/api/problems');
+    console.log('[MathForces apiClient] GET /api/problems ok, count:', list?.length ?? 0);
+    return list;
+  } catch (err) {
+    console.warn('[MathForces apiClient] GET /api/problems failed; using embedded constants', err);
     return PROBLEMS;
   }
 }

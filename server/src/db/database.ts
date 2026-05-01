@@ -3,8 +3,18 @@ import path from 'path';
 import fs from 'fs';
 import { SCHEMA_SQL } from './schema';
 
-const DB_DIR = path.resolve(__dirname, '..', '..', 'data');
-const DB_PATH = path.join(DB_DIR, 'mathforces.db');
+function resolveDatabasePath(): string {
+  const raw = process.env.MATHFORCES_DB_PATH?.trim();
+  if (raw) {
+    return path.isAbsolute(raw) ? raw : path.resolve(process.cwd(), raw);
+  }
+  // Compiled from server/dist/db/*.js → ../../data = server/data (not repo-root /data).
+  const dir = path.resolve(__dirname, '..', '..', 'data');
+  return path.join(dir, 'mathforces.db');
+}
+
+const DB_PATH = resolveDatabasePath();
+const DB_DIR = path.dirname(DB_PATH);
 
 let _db: Database.Database | null = null;
 
@@ -14,6 +24,17 @@ let _db: Database.Database | null = null;
  */
 export function getDb(): Database.Database {
   if (_db) return _db;
+
+  const existsBefore = fs.existsSync(DB_PATH);
+  const sizeBefore = existsBefore ? fs.statSync(DB_PATH).size : 0;
+  console.log('[MathForces db] opening SQLite', {
+    MATHFORCES_DB_PATH: process.env.MATHFORCES_DB_PATH ?? '(unset — using compiled default)',
+    cwd: process.cwd(),
+    __dirname,
+    DB_PATH,
+    existsBeforeOpen: existsBefore,
+    sizeBytesBeforeOpen: sizeBefore,
+  });
 
   if (!fs.existsSync(DB_DIR)) {
     fs.mkdirSync(DB_DIR, { recursive: true });
@@ -33,6 +54,13 @@ export function getDb(): Database.Database {
 
   // Enable foreign keys for this connection
   _db.pragma('foreign_keys = ON');
+
+  try {
+    const row = _db.prepare('SELECT COUNT(*) AS c FROM problems').get() as { c: number };
+    console.log('[MathForces db] problems table row count:', row.c);
+  } catch (e) {
+    console.warn('[MathForces db] could not count problems rows:', e);
+  }
 
   return _db;
 }

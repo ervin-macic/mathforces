@@ -26,6 +26,13 @@ const allowedOrigins: string[] = (
   process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173'
 ).split(',').map(s => s.trim()).filter(Boolean);
 
+console.log('[MathForces API] startup env', {
+  PORT: process.env.PORT ?? '(unset)',
+  FRONTEND_ORIGIN: process.env.FRONTEND_ORIGIN ?? '(unset — default localhost:5173)',
+  allowedOrigins,
+  MATHFORCES_DB_PATH: process.env.MATHFORCES_DB_PATH ?? '(unset)',
+});
+
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no Origin header (e.g. same-origin, curl, server-to-server)
@@ -50,7 +57,7 @@ app.get('/health', (_req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`MathForces API listening on http://localhost:${PORT}`);
+  console.log(`[MathForces API] listening on http://localhost:${PORT}`);
 });
 
 export default app;

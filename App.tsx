@@ -38,10 +38,21 @@ function App() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const list = await fetchProblems();
-      if (!cancelled) {
-        setAppProblems(list);
-        setProblemsReady(true);
+      try {
+        const list = await fetchProblems();
+        console.log('[MathForces App] problems loaded into state', {
+          count: list?.length ?? 0,
+        });
+        if (!cancelled) {
+          setAppProblems(list);
+          setProblemsReady(true);
+        }
+      } catch (e) {
+        console.error('[MathForces App] fetchProblems threw', e);
+        if (!cancelled) {
+          setAppProblems([]);
+          setProblemsReady(true);
+        }
       }
     })();
     return () => {
