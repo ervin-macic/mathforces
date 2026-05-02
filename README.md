@@ -9,7 +9,7 @@ Made during **Columbia University's hackathon Divhacks 2025**.
 ## Mathforces
 **Mathforces** is an intelligent IMO-level math practice website aimed at students without access to olympiad coaches.
 
-It uses a database of olympiad questions with difficulty spanning easy, medium, hard IMO problems, taken from the Art of Problem Solving website. For each question, a Gemini model generates a series of 3 progressive hints that guides the user to a full solution. In addition to Unlimited practice mode, the platform also has a competition mode with a format akin to the real IMO. 
+It uses a database of olympiad questions with difficulty spanning easy, medium, hard IMO problems, taken from the Art of Problem Solving website. For each question, a Gemini model generates a series of 3 progressive hints that guides the student to a full solution. In addition to the Endless practice mode, the platform also has a Competition mode with a format like the real IMO. 
 
 ---
 
