@@ -1,4 +1,7 @@
-Made during **Columbia University's hackathon Divhacks 2025**
+https://www.mathforces.study/
+
+Made during **Columbia University's hackathon Divhacks 2025**.
+
 **Won the productivity track.**
 
 ---
