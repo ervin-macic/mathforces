@@ -28,6 +28,8 @@ Gives personalized next problem for candidates using:
 
 Problems mostly imported from [MathNet](https://mathnet.mit.edu/). The problems carry difficulty estimate on the **MOHS** scale (−60 to +60 in steps of 5: too easy → far beyond contest level), professionally verified solutions, and problem source.
 
+![MathNet](docs/images/mathnet.png)
+
 - **Three progressive hints per problem** 
 
 Aimed to help just enough to foster learning: Hint 1 is broad, Hint 2 stronger, Hint 3 almost decisive—without replacing real solve effort. Hints are **pregenerated** with **Gemini** and stored locally so play stays fast and deterministic at runtime—no on-demand generation during a session.
