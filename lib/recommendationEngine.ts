@@ -251,8 +251,9 @@ export function scoreCandidateProblem(
  *
  * Returns the index into `problems` of the chosen problem.
  *
- * Excludes the current problem. If no suitable candidate is found (e.g. only one
- * problem in the list), falls back to a random pick.
+ * Never picks a problem whose id appears in `sessionProblemIds` (full session history).
+ * Also excludes the current problem. If every other problem was already shown this session,
+ * falls back to any problem except the current one so play can continue.
  */
 export function getNextProblemIndex(
   problems: Problem[],
@@ -261,9 +262,17 @@ export function getNextProblemIndex(
   if (problems.length === 0) return 0;
   if (problems.length === 1) return 0;
 
-  const candidates = problems
+  const seenThisSession = new Set(profile.sessionProblemIds);
+
+  let candidates = problems
     .map((p, index) => ({ p, index }))
-    .filter(({ p }) => p.id !== profile.currentProblemId);
+    .filter(({ p }) => p.id !== profile.currentProblemId && !seenThisSession.has(p.id));
+
+  if (candidates.length === 0) {
+    candidates = problems
+      .map((p, index) => ({ p, index }))
+      .filter(({ p }) => p.id !== profile.currentProblemId);
+  }
 
   if (candidates.length === 0) return 0;
 

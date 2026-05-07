@@ -190,7 +190,13 @@ export function recommendNextProblem(opts: RecommendOptions): ProblemRow | null 
   const currentProblem = allProblems.find(p => p.id === currentProblemId) ?? null;
   const currentMohs = currentProblem?.mohs ?? 0;
 
-  const candidates = allProblems.filter(p => p.id !== currentProblemId);
+  const seenThisSession = new Set(sessionProblemIds);
+  let candidates = allProblems.filter(
+    p => p.id !== currentProblemId && !seenThisSession.has(p.id),
+  );
+  if (candidates.length === 0) {
+    candidates = allProblems.filter(p => p.id !== currentProblemId);
+  }
   if (candidates.length === 0) return allProblems[0] ?? null;
 
   const scored = candidates.map(p => ({
