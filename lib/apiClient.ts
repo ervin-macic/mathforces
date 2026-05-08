@@ -5,8 +5,9 @@
  * the Vite dev server without the backend), every call falls back gracefully
  * to the in-memory constants so the app remains functional.
  *
- * Set VITE_API_URL in .env.local to point at the backend, e.g.:
- *   VITE_API_URL=http://localhost:3001
+ * In local dev, leave VITE_API_URL empty — the Vite proxy forwards /api and
+ * /health to localhost:3001. Set VITE_API_URL only when running without the
+ * Vite dev server (e.g. vite preview or a separate deployment).
  */
 
 import { Problem, SolvedProblem } from '../types';
@@ -17,7 +18,7 @@ const API_BASE = (import.meta as any).env?.VITE_API_URL ?? '';
 
 if (typeof window !== 'undefined') {
   console.log('[MathForces apiClient] init', {
-    VITE_API_URL: API_BASE || '(empty — same-origin relative URLs)',
+    VITE_API_URL: API_BASE || '(empty — using Vite proxy / same-origin)',
     viteMode: (import.meta as any).env?.MODE,
   });
 }
@@ -41,16 +42,12 @@ let _backendAvailable: boolean | null = null;
 
 async function isBackendAvailable(): Promise<boolean> {
   if (_backendAvailable !== null) return _backendAvailable;
-  if (!API_BASE) {
-    console.log(
-      '[MathForces apiClient] no VITE_API_URL — treating backend as unavailable; will use embedded PROBLEMS',
-    );
-    _backendAvailable = false;
-    return false;
-  }
-  const healthUrl = `${API_BASE}/health`;
+  // Use relative URL when no explicit API_BASE; the Vite dev proxy routes
+  // /health → Express. In production the Express server serves the frontend
+  // at the same origin so relative URLs work there too.
+  const healthUrl = API_BASE ? `${API_BASE}/health` : '/health';
   try {
-    const res = await fetch(healthUrl, { method: 'GET' });
+    const res = await fetch(healthUrl, { method: 'GET', signal: AbortSignal.timeout(3000) });
     _backendAvailable = res.ok;
     console.log('[MathForces apiClient] GET /health', {
       healthUrl,

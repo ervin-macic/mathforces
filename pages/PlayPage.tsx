@@ -202,26 +202,44 @@ const PlayPage: React.FC<PlayPageProps> = ({
   if (playView === 'START_SCREEN') {
     const canStart = !problemsLoading && problems.length > 0;
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center p-8">
-          <h1 className="text-5xl font-bold mb-4">Ready to train?</h1>
-          <p className="text-xl text-light/80 mb-8">Start your personalized math olympiad session.</p>
+      <div className="flex items-center justify-center min-h-screen px-4">
+        <div className="w-full max-w-lg">
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-bold text-light mb-2 tracking-tight">Endless Practice</h1>
+            <p className="text-light/60">One problem at a time, adapted to you.</p>
+          </div>
+
+          <div className="bg-secondary/50 border border-secondary rounded-2xl p-6 mb-6 space-y-3">
+            {[
+              { icon: '∞', text: 'Problems served until you end the session' },
+              { icon: '💡', text: 'Up to 3 progressive hints per problem — reveal only what you need' },
+              { icon: '📈', text: 'MOHS difficulty adapts based on your solve history' },
+              { icon: '⏱', text: 'Timer per problem — visible but no time limit' },
+            ].map(item => (
+              <div key={item.text} className="flex items-start gap-3 text-sm text-light/65">
+                <span className="shrink-0 w-5 text-center">{item.icon}</span>
+                <span>{item.text}</span>
+              </div>
+            ))}
+          </div>
+
           {problemsLoading && (
-            <p className="text-light-secondary mb-6">Loading problems from the server…</p>
+            <p className="text-center text-light-secondary text-sm mb-5">Loading problems…</p>
           )}
           {!problemsLoading && problems.length === 0 && (
-            <p className="text-light-secondary mb-6 max-w-lg mx-auto">
-              No problems loaded. Run the MathForces API (see README) and set{' '}
-              <code className="text-accent">VITE_API_URL</code> in <code className="text-accent">.env.local</code>, or check that{' '}
-              <code className="text-accent">server/data/mathforces.db</code> exists.
+            <p className="text-center text-light-secondary text-sm mb-5 leading-relaxed">
+              No problems loaded. Start the API and set{' '}
+              <code className="text-accent font-mono">VITE_API_URL</code> in{' '}
+              <code className="text-accent font-mono">.env.local</code>.
             </p>
           )}
+
           <button
             onClick={handleStartSession}
             disabled={!canStart}
-            className="bg-accent text-primary font-bold text-2xl px-12 py-4 rounded-lg hover:opacity-90 transition-all shadow-lg shadow-accent/20 hover:shadow-2xl hover:shadow-accent/40 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-full bg-accent text-primary font-bold text-xl py-4 rounded-xl hover:opacity-90 transition-all shadow-lg shadow-accent/25 hover:shadow-xl hover:shadow-accent/40 disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Start Session
+            {problemsLoading ? 'Loading…' : 'Start Session'}
           </button>
         </div>
       </div>
@@ -284,7 +302,7 @@ const PlayPage: React.FC<PlayPageProps> = ({
             <div className="flex justify-end items-center mb-10 px-4">
               <Timer key={currentProblemIndex} onTimeUpdate={setCurrentTime} />
             </div>
-            <div className="text-left text-2xl text-light leading-relaxed mb-12 px-4">
+            <div className="text-left text-2xl text-light leading-relaxed mb-12 px-4 font-mono">
               <MathJax dynamic>{currentProblem.statement}</MathJax>
             </div>
             {currentProblem.source_ref && (

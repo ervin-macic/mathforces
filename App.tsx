@@ -95,7 +95,12 @@ function App() {
   const renderContent = () => {
     switch (activePage) {
       case Page.About:
-        return <AboutPage />;
+        return (
+          <AboutPage
+            onStartPlay={() => setActivePage(Page.Play)}
+            onChooseMode={() => setActivePage(Page.SessionSettings)}
+          />
+        );
       case Page.SessionSettings:
         return <SessionSettingsPage onModeSelect={(mode) => {
           if (mode === 'endless') {
