@@ -14,6 +14,7 @@ import ProgressPage from './pages/ProgressPage';
 import PlayPage from './pages/PlayPage';
 import SessionSettingsPage from './pages/SessionSettingsPage';
 import CompetitionPage from './pages/CompetitionPage';
+import TermsPage from './pages/TermsPage';
 
 const mathJaxConfig = {
   loader: { load: ['input/tex', 'output/svg'] },
@@ -105,6 +106,8 @@ function App() {
         }} />;
       case Page.Leaderboard:
         return <LeaderboardPage />;
+      case Page.Terms:
+        return <TermsPage />;
       case Page.Progress:
         return <ProgressPage solvedProblems={solvedProblems} />;
       case Page.Competition:
@@ -158,7 +161,7 @@ function App() {
       radial-gradient(ellipse 80% 100% at 10% 90%, rgba(226, 183, 19, 0.08), transparent 70%)
     `;
     appStyle.backgroundRepeat = 'no-repeat';
-  } else if (isAboutPage || activePage === Page.Leaderboard) {
+  } else if (isAboutPage || activePage === Page.Leaderboard || activePage === Page.Terms) {
     appStyle.backgroundImage = `
       radial-gradient(ellipse 80% 100% at 90% 10%, rgba(226, 183, 19, 0.10), transparent 70%),
       radial-gradient(ellipse 80% 100% at 10% 90%, rgba(226, 183, 19, 0.05), transparent 70%)
@@ -180,10 +183,10 @@ function App() {
               onLogoutClick={handleLogout}
           />
         )}
-        <main className={`flex-grow ${isImmersiveMode || isAboutPage || isSettingsPage || activePage === Page.Leaderboard ? "" : "container mx-auto"}`}>
+        <main className={`flex-grow ${isImmersiveMode || isAboutPage || isSettingsPage || activePage === Page.Leaderboard || activePage === Page.Terms ? "" : "container mx-auto"}`}>
           {renderContent()}
         </main>
-        {!isImmersiveMode && <Footer />}
+        {!isImmersiveMode && <Footer activePage={activePage} onNavigate={handleNavigate} />}
       </div>
     </MathJaxContext>
   );

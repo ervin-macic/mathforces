@@ -20,8 +20,6 @@ const Navbar: React.FC<NavbarProps> = ({ activePage, onNavigate, isLoggedIn, onL
   if (isLoggedIn) {
     navItemsConfig.push({ page: Page.Progress, label: "Progress" });
   }
-  
-  navItemsConfig.push({ page: Page.Leaderboard, label: "Leaderboard" });
 
   const handleMobileNavClick = (page: Page) => {
     onNavigate(page);

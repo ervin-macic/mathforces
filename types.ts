@@ -6,6 +6,7 @@ export enum Page {
   Progress = 'PROGRESS',
   SessionSettings = 'SESSION_SETTINGS',
   Competition = 'COMPETITION',
+  Terms = 'TERMS',
 }
 
 export interface Problem {
