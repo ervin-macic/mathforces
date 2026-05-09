@@ -1,6 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { SolvedProblem, Problem } from '../types';
 import { MathJax } from 'better-react-mathjax';
+import {
+  pickCompetitionProblems,
+  canPickCompetitionProblems,
+} from '../lib/competitionProblems';
 
 declare const confetti: any;
 
@@ -17,9 +21,10 @@ interface CompetitionPageProps {
 
 const COMPETITION_DURATION = 4.5 * 60 * 60;
 
+/** Legacy shuffle when the DB cannot satisfy topic/MOHS rules (rare). */
 const pickRandomProblems = (arr: Problem[], num: number): Problem[] => {
-    const shuffled = [...arr].sort(() => 0.5 - Math.random());
-    return shuffled.slice(0, num);
+  const shuffled = [...arr].sort(() => 0.5 - Math.random());
+  return shuffled.slice(0, num);
 };
 
 const CountdownTimer: React.FC<{ seconds: number }> = ({ seconds }) => {
@@ -62,12 +67,25 @@ const CompetitionPage: React.FC<CompetitionPageProps> = ({
     }, [isTimerRunning]);
 
     const setupCompetition = useCallback(() => {
-        setCompetitionProblems(pickRandomProblems(problems, 3));
+        const picked = pickCompetitionProblems(problems);
+        if (picked) {
+            setCompetitionProblems(picked);
+        } else {
+            console.warn(
+                '[Competition] No triple matched distinct topics + MOHS bands; using random fallback.',
+            );
+            setCompetitionProblems(pickRandomProblems(problems, 3));
+        }
         setTimeLeft(COMPETITION_DURATION);
         setSolvedMask([false, false, false]);
         setRatings({});
         setIsTimerRunning(true);
     }, [problems]);
+
+    const competitionFeasible = useMemo(
+        () => canPickCompetitionProblems(problems),
+        [problems],
+    );
 
     useEffect(() => {
         let timer: ReturnType<typeof setTimeout>;
@@ -156,12 +174,17 @@ const CompetitionPage: React.FC<CompetitionPageProps> = ({
     const { activeClasses, ratingClasses } = getAnimationClasses();
 
     if (animationStage === 'INTRO') {
-        const canStart = !problemsLoading && problems.length >= 3;
+        const canStart =
+            !problemsLoading && problems.length >= 3 && competitionFeasible;
         return (
              <div className="flex items-center justify-center min-h-screen">
               <div className="text-center p-8">
                   <h1 className="text-5xl font-bold mb-4">Competition Mode</h1>
                   <p className="text-xl text-light/80 mb-8">You'll have 4.5 hours to solve 3 problems.</p>
+                  <p className="text-sm text-light-secondary mb-6 max-w-xl mx-auto leading-relaxed">
+                      Problems are chosen with three different topics and increasing MOHS: roughly 5–10, then 15–35,
+                      then at least 25.
+                  </p>
                   {problemsLoading && (
                       <p className="text-light-secondary mb-6">Loading problems from the server…</p>
                   )}
@@ -170,6 +193,12 @@ const CompetitionPage: React.FC<CompetitionPageProps> = ({
                           Need at least 3 problems in the database. Run the API with a populated{' '}
                           <code className="text-accent">mathforces.db</code> and set{' '}
                           <code className="text-accent">VITE_API_URL</code> in <code className="text-accent">.env.local</code>.
+                      </p>
+                  )}
+                  {!problemsLoading && problems.length >= 3 && !competitionFeasible && (
+                      <p className="text-light-secondary mb-6 max-w-lg mx-auto leading-relaxed">
+                          Not enough variety in the database to build a contest set (need three distinct topics with
+                          problems in the MOHS ranges above). Add more problems or relax data constraints.
                       </p>
                   )}
                   <button
