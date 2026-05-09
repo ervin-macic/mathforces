@@ -21,6 +21,47 @@ interface PlayPageProps {
     onSessionStart: () => void;
 }
 
+/** Only http(s) URLs become anchors; plain-text refs stay non-interactive. */
+function isHttpUrl(ref: string): boolean {
+  const t = ref.trim();
+  return /^https?:\/\//i.test(t);
+}
+
+function SourceAttribution({ problem }: { problem: Problem }) {
+  const refRaw = problem.source_ref?.trim();
+  const tag = problem.source_tag?.trim();
+  if (!refRaw && !tag) return null;
+
+  const refIsLink = refRaw ? isHttpUrl(refRaw) : false;
+  const plainParts = [
+    tag ? `[${tag}]` : '',
+    refRaw && !refIsLink ? refRaw : '',
+  ].filter(Boolean);
+
+  return (
+    <div>
+      <p className="font-bold text-accent/80 mb-2">Source</p>
+      {refRaw && refIsLink ? (
+        <a
+          href={refRaw}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-sm text-light-secondary hover:text-accent transition-colors break-all"
+        >
+          {tag ? `${tag}: ` : ''}
+          {refRaw}
+          {' '}
+          ↗
+        </a>
+      ) : (
+        <p className="text-sm text-light/80">
+          {plainParts.length > 0 ? plainParts.join(' ') : (tag ?? refRaw ?? '')}
+        </p>
+      )}
+    </div>
+  );
+}
+
 const PlayPage: React.FC<PlayPageProps> = ({
   problems,
   problemsLoading = false,
@@ -366,24 +407,7 @@ const PlayPage: React.FC<PlayPageProps> = ({
                   ) : (
                     <div className="bg-secondary/50 p-4 rounded-lg space-y-4 text-light/90">
                       {(currentProblem.source_ref || currentProblem.source_tag) && (
-                        <div>
-                          <p className="font-bold text-accent/80 mb-2">Source</p>
-                          {currentProblem.source_ref ? (
-                            <a
-                              href={currentProblem.source_ref}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-sm text-light-secondary hover:text-accent transition-colors break-all"
-                            >
-                              {currentProblem.source_tag ? `[${currentProblem.source_tag}] ` : ''}
-                              {currentProblem.source_ref}
-                              {' '}
-                              ↗
-                            </a>
-                          ) : (
-                            <p className="text-sm text-light/80">{currentProblem.source_tag}</p>
-                          )}
-                        </div>
+                        <SourceAttribution problem={currentProblem} />
                       )}
                       <div>
                         <p className="font-bold text-accent/80 mb-2">Solution</p>
