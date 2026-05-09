@@ -37,7 +37,7 @@ const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <nav className="bg-[#1f2023]/90 backdrop-blur-sm py-4 px-4 sticky top-0 z-10 border-b border-secondary/40">
+    <nav className="bg-[#1f2023]/95 py-4 px-4 sticky top-0 z-10 border-b border-secondary/40">
       <div className="container mx-auto flex justify-between items-center">
         <div
           className="text-xl font-bold text-accent cursor-pointer font-mono"

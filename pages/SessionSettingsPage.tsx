@@ -12,7 +12,7 @@ const SessionSettingsPage: React.FC<SessionSettingsPageProps> = ({ onModeSelect 
         <p className="text-light/60">Select how you want to train today.</p>
       </div>
 
-      {/* Primary: Endless Mode */}
+      {/* Primary: Practice */}
       <div
         className="bg-accent/8 border-2 border-accent/40 hover:border-accent rounded-2xl p-8 mb-5 cursor-pointer transition-all hover:shadow-xl hover:shadow-accent/20 group"
         onClick={() => onModeSelect('endless')}
@@ -24,7 +24,7 @@ const SessionSettingsPage: React.FC<SessionSettingsPageProps> = ({ onModeSelect 
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-3">
               <span className="text-2xl">∞</span>
-              <h2 className="text-2xl font-bold text-accent">Endless Practice</h2>
+              <h2 className="text-2xl font-bold text-accent">Practice</h2>
               <span className="text-xs bg-accent/20 text-accent font-semibold px-2.5 py-0.5 rounded-full border border-accent/30">
                 Recommended
               </span>
@@ -42,7 +42,7 @@ const SessionSettingsPage: React.FC<SessionSettingsPageProps> = ({ onModeSelect 
           <div className="shrink-0">
             <button
               onClick={(e) => { e.stopPropagation(); onModeSelect('endless'); }}
-              className="bg-accent text-primary font-bold px-8 py-3 rounded-xl hover:opacity-90 transition-all shadow-lg shadow-accent/25 group-hover:shadow-xl group-hover:shadow-accent/40 whitespace-nowrap"
+              className="bg-accent text-primary font-bold px-8 py-3 rounded-xl hover:opacity-90 transition-all shadow-md shadow-black/20 group-hover:shadow-md group-hover:shadow-black/25 whitespace-nowrap"
             >
               Start practicing
             </button>

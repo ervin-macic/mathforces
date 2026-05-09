@@ -266,7 +266,7 @@ const PlayPage: React.FC<PlayPageProps> = ({
       <div className="flex items-center justify-center min-h-screen px-4">
         <div className="w-full max-w-lg">
           <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-light mb-2 tracking-tight">Endless Practice</h1>
+            <h1 className="text-4xl font-bold text-light mb-2 tracking-tight">Practice</h1>
             <p className="text-light/60">One problem at a time, adapted to you.</p>
           </div>
 
@@ -298,7 +298,7 @@ const PlayPage: React.FC<PlayPageProps> = ({
           <button
             onClick={handleStartSession}
             disabled={!canStart}
-            className="w-full bg-accent text-primary font-bold text-xl py-4 rounded-xl hover:opacity-90 transition-all shadow-lg shadow-accent/25 hover:shadow-xl hover:shadow-accent/40 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-full bg-accent text-primary font-bold text-xl py-4 rounded-xl hover:opacity-90 transition-all shadow-md shadow-black/20 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {problemsLoading ? 'Loading…' : 'Start Session'}
           </button>

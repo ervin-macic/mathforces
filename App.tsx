@@ -98,6 +98,7 @@ function App() {
         return (
           <AboutPage
             onStartPlay={() => setActivePage(Page.Play)}
+            onStartCompetition={() => setActivePage(Page.Competition)}
             onChooseMode={() => setActivePage(Page.SessionSettings)}
           />
         );
