@@ -14,7 +14,7 @@ const TermsPage: React.FC = () => {
 
       <section className="space-y-4 text-light/85 leading-relaxed">
         <p>
-          MathForces is a personal, educational tool for practicing
+          Mathforces is a personal, educational tool for practicing
           olympiad-level mathematics. It is provided as-is, solely as a study aid.
         </p>
       </section>
@@ -77,7 +77,7 @@ const TermsPage: React.FC = () => {
         <h2 className="text-2xl font-bold text-accent mb-3">No affiliation</h2>
         <div className="space-y-4 text-light/85 leading-relaxed">
           <p>
-            MathForces is not affiliated with, endorsed by, or sponsored by
+            Mathforces is not affiliated with, endorsed by, or sponsored by
             the International Mathematical Olympiad (IMO), MathNet, the Art
             of Problem Solving (AoPS), or any other contest, organization,
             or institution referenced on the site. Names and trademarks

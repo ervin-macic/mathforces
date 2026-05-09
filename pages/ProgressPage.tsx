@@ -5,6 +5,7 @@ import { PieChart, Pie, Cell, Legend, ResponsiveContainer, BarChart, Bar, XAxis,
 
 interface ProgressPageProps {
   solvedProblems: SolvedProblem[];
+  isLoggedIn?: boolean;
 }
 
 const RADIAN = Math.PI / 180;
@@ -25,7 +26,7 @@ const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, per
 };
 
 
-const ProgressPage: React.FC<ProgressPageProps> = ({ solvedProblems }) => {
+const ProgressPage: React.FC<ProgressPageProps> = ({ solvedProblems, isLoggedIn = false }) => {
   // Separate solved from skipped for accurate stats
   const solvedOnly = solvedProblems.filter(p => p.status !== 'skipped');
   const recentProblems = solvedOnly.slice().reverse().slice(0, 3);
@@ -62,6 +63,12 @@ const ProgressPage: React.FC<ProgressPageProps> = ({ solvedProblems }) => {
   return (
     <div className="p-8 max-w-7xl mx-auto">
       <h1 className="text-4xl font-bold text-accent mb-8">Progress Overview</h1>
+
+      {!isLoggedIn && (
+        <div className="bg-secondary/40 border border-accent/30 rounded-xl p-4 mb-8 text-sm text-light/80">
+          You're playing as a guest. <span className="text-accent font-medium">Sign in</span> to keep your progress across sessions.
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 mb-12">
         {/* Main content: charts */}

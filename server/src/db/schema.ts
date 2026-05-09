@@ -10,12 +10,21 @@ PRAGMA journal_mode = WAL;
 PRAGMA foreign_keys = ON;
 
 -- ── Users ──────────────────────────────────────────────────────────────────
+-- password_hash is kept for legacy email/password rows (used a sentinel '' for
+-- Google-only accounts). Google identity columns (google_sub/email/display_name/
+-- picture_url) are added so the same row can represent a Google-authenticated user.
 CREATE TABLE IF NOT EXISTS users (
-  id           INTEGER PRIMARY KEY AUTOINCREMENT,
-  username     TEXT    NOT NULL UNIQUE COLLATE NOCASE,
-  password_hash TEXT   NOT NULL,
-  created_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  username      TEXT    NOT NULL UNIQUE COLLATE NOCASE,
+  password_hash TEXT    NOT NULL DEFAULT '',
+  google_sub    TEXT             UNIQUE,
+  email         TEXT,
+  display_name  TEXT,
+  picture_url   TEXT,
+  created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE INDEX IF NOT EXISTS idx_users_google_sub ON users(google_sub);
 
 -- ── Problems ───────────────────────────────────────────────────────────────
 -- mohs: -60 to +60 stored in multiples of 5.

@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Page } from '../types';
+import { AuthUser } from '../lib/auth';
 
 interface NavbarProps {
   activePage: Page;
   onNavigate: (page: Page) => void;
-  isLoggedIn: boolean;
+  user: AuthUser | null;
   onLoginClick: () => void;
   onLogoutClick: () => void;
 }
@@ -15,11 +16,12 @@ const isPlayActive = (activePage: Page) =>
 const Navbar: React.FC<NavbarProps> = ({
   activePage,
   onNavigate,
-  isLoggedIn,
+  user,
   onLoginClick,
   onLogoutClick,
 }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const isLoggedIn = !!user;
 
   const textNavItems: { page: Page; label: string }[] = [
     { page: Page.About, label: 'About' },
@@ -36,6 +38,41 @@ const Navbar: React.FC<NavbarProps> = ({
     setIsMobileMenuOpen(false);
   };
 
+  const userBadge = user ? (
+    <div className="ml-2 flex items-center gap-2 pl-2 pr-1 py-1 rounded-lg bg-secondary/60 border border-secondary/80">
+      {user.picture ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={user.picture}
+          alt=""
+          className="w-7 h-7 rounded-full object-cover"
+          referrerPolicy="no-referrer"
+        />
+      ) : (
+        <div className="w-7 h-7 rounded-full bg-accent/30 text-accent flex items-center justify-center text-sm font-bold">
+          {(user.displayName || user.username).slice(0, 1).toUpperCase()}
+        </div>
+      )}
+      <span className="text-sm text-light max-w-[140px] truncate">
+        {user.displayName || user.username}
+      </span>
+      <button
+        onClick={onLogoutClick}
+        className="ml-1 px-2 py-1 rounded-md text-xs font-medium text-light/60 hover:text-light hover:bg-secondary transition-colors"
+        title="Sign out"
+      >
+        Sign out
+      </button>
+    </div>
+  ) : (
+    <button
+      onClick={onLoginClick}
+      className="ml-2 bg-secondary border border-secondary/80 text-light px-4 py-2 rounded-lg text-sm font-medium hover:border-accent/40 hover:text-accent transition-all"
+    >
+      Sign in
+    </button>
+  );
+
   return (
     <nav className="bg-[#1f2023]/95 py-4 px-4 sticky top-0 z-10 border-b border-secondary/40">
       <div className="container mx-auto flex justify-between items-center">
@@ -43,7 +80,7 @@ const Navbar: React.FC<NavbarProps> = ({
           className="text-xl font-bold text-accent cursor-pointer font-mono"
           onClick={() => onNavigate(Page.About)}
         >
-          MathForces
+          Mathforces
         </div>
 
         {/* Desktop Navigation */}
@@ -78,21 +115,7 @@ const Navbar: React.FC<NavbarProps> = ({
           </button>
 
           {/* Auth */}
-          {isLoggedIn ? (
-            <button
-              onClick={onLogoutClick}
-              className="ml-2 px-4 py-2 rounded-lg text-sm font-medium text-light/60 hover:text-light transition-colors"
-            >
-              Logout
-            </button>
-          ) : (
-            <button
-              onClick={onLoginClick}
-              className="ml-2 bg-secondary border border-secondary/80 text-light px-4 py-2 rounded-lg text-sm font-medium hover:border-accent/40 hover:text-accent transition-all"
-            >
-              Login
-            </button>
-          )}
+          {userBadge}
         </div>
 
         {/* Mobile Hamburger */}
@@ -140,18 +163,35 @@ const Navbar: React.FC<NavbarProps> = ({
             <div className="h-px bg-secondary/60 my-1" />
 
             {isLoggedIn ? (
-              <button
-                onClick={() => handleMobileAuthClick(onLogoutClick)}
-                className="px-4 py-2.5 text-left text-base font-medium text-light/60 hover:text-light transition-colors"
-              >
-                Logout
-              </button>
+              <div className="flex items-center gap-3 px-4 py-2">
+                {user!.picture ? (
+                  <img
+                    src={user!.picture}
+                    alt=""
+                    className="w-8 h-8 rounded-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-accent/30 text-accent flex items-center justify-center text-sm font-bold">
+                    {(user!.displayName || user!.username).slice(0, 1).toUpperCase()}
+                  </div>
+                )}
+                <span className="text-sm text-light flex-1 truncate">
+                  {user!.displayName || user!.username}
+                </span>
+                <button
+                  onClick={() => handleMobileAuthClick(onLogoutClick)}
+                  className="text-sm font-medium text-light/60 hover:text-light transition-colors"
+                >
+                  Sign out
+                </button>
+              </div>
             ) : (
               <button
                 onClick={() => handleMobileAuthClick(onLoginClick)}
                 className="px-4 py-2.5 text-left text-base font-medium text-light/60 hover:text-light transition-colors"
               >
-                Login
+                Sign in
               </button>
             )}
           </div>

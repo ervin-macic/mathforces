@@ -5,6 +5,7 @@ import TypewriterHint from '../components/TypewriterHint';
 import { MathJax } from 'better-react-mathjax';
 import { selectNextProblem } from '../lib/recommendationEngine';
 import { randomIntExclusive } from '../lib/random';
+import { postAttempt } from '../lib/apiClient';
 
 declare const confetti: any;
 
@@ -16,9 +17,19 @@ interface PlayPageProps {
     /** True while problems are being fetched from the API */
     problemsLoading?: boolean;
     solvedProblems: SolvedProblem[];
+    /** Authenticated user id; null when playing as a guest. */
+    userId: number | null;
     onProblemSolved: (problem: SolvedProblem) => void;
     onSessionEnd: () => void;
     onSessionStart: () => void;
+}
+
+/** Cheap UUID v4-ish generator for session ids. */
+function uuid(): string {
+    if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+        return (crypto as Crypto).randomUUID();
+    }
+    return 'sess-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
 /** Only http(s) URLs become anchors; plain-text refs stay non-interactive. */
@@ -66,6 +77,7 @@ const PlayPage: React.FC<PlayPageProps> = ({
   problems,
   problemsLoading = false,
   solvedProblems,
+  userId,
   onProblemSolved,
   onSessionEnd,
   onSessionStart,
@@ -83,6 +95,7 @@ const PlayPage: React.FC<PlayPageProps> = ({
   const [isHintTyping, setIsHintTyping] = useState(false);
   const [lastAction, setLastAction] = useState<'solved' | 'skipped' | null>(null);
   const [revealedAnswer, setRevealedAnswer] = useState(false);
+  const [sessionId, setSessionId] = useState<string>(() => uuid());
 
   const hintsSectionRef = useRef<HTMLDivElement>(null);
 
@@ -166,6 +179,7 @@ const PlayPage: React.FC<PlayPageProps> = ({
     setRevealedAnswer(false);
     setAnimationStage('PROBLEM_VIEW');
     setPlayView('PLAYING');
+    setSessionId(uuid());
     onSessionStart();
   };
 
@@ -210,6 +224,18 @@ const PlayPage: React.FC<PlayPageProps> = ({
     setSessionSolvedProblems(prev => [...prev, newSolvedProblem]);
     setLastAction('solved');
     setAnimationStage('RATING_EXITING');
+
+    if (userId !== null) {
+      void postAttempt({
+        userId,
+        problemId: problem.id,
+        sessionId,
+        status: 'solved',
+        timeSpentSec: currentTime,
+        userRating: rating,
+        usedHintLevel: hintLevel,
+      });
+    }
   };
 
   const handleSkipProblem = () => {
@@ -227,6 +253,17 @@ const PlayPage: React.FC<PlayPageProps> = ({
     setSessionSolvedProblems(prev => [...prev, skippedEntry]);
     setLastAction('skipped');
     setAnimationStage('PROBLEM_EXITING');
+
+    if (userId !== null) {
+      void postAttempt({
+        userId,
+        problemId: problem.id,
+        sessionId,
+        status: 'skipped',
+        timeSpentSec: currentTime,
+        usedHintLevel: hintLevel,
+      });
+    }
   };
 
   const getAnimationClasses = () => {

@@ -130,7 +130,7 @@ const AboutPage: React.FC<AboutPageProps> = ({ onStartPlay, onStartCompetition, 
           <div className="flex-1">
             <p className="text-light font-semibold mb-1">Problems sourced from MathNet</p>
             <p className="text-sm text-light-secondary leading-relaxed">
-              MathForces builds on MathNet — a large-scale multilingual olympiad dataset
+              Mathforces builds on MathNet — a large-scale multilingual olympiad dataset
               from MIT spanning 47 countries, 17 languages, and two decades of competition
               math — adding personalized recommendations and AI-generated hints on top.
             </p>

@@ -5,6 +5,7 @@ import {
   pickCompetitionProblems,
   canPickCompetitionProblems,
 } from '../lib/competitionProblems';
+import { postAttempt } from '../lib/apiClient';
 
 declare const confetti: any;
 
@@ -14,12 +15,21 @@ type AnimationStage = 'INTRO' | 'ACTIVE' | 'RATING' | 'RATING_EXITING' | 'ACTIVE
 interface CompetitionPageProps {
     problems: Problem[];
     problemsLoading?: boolean;
+    /** Authenticated user id; null for guest play. */
+    userId: number | null;
     onProblemSolved: (problem: SolvedProblem) => void;
     onSessionEnd: () => void;
     onSessionStart: () => void;
 }
 
 const COMPETITION_DURATION = 4.5 * 60 * 60;
+
+function uuid(): string {
+    if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+        return (crypto as Crypto).randomUUID();
+    }
+    return 'sess-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
 
 /** Legacy shuffle when the DB cannot satisfy topic/MOHS rules (rare). */
 const pickRandomProblems = (arr: Problem[], num: number): Problem[] => {
@@ -40,6 +50,7 @@ const CountdownTimer: React.FC<{ seconds: number }> = ({ seconds }) => {
 const CompetitionPage: React.FC<CompetitionPageProps> = ({
     problems,
     problemsLoading = false,
+    userId,
     onProblemSolved,
     onSessionEnd,
     onSessionStart,
@@ -50,6 +61,7 @@ const CompetitionPage: React.FC<CompetitionPageProps> = ({
     const [solvedMask, setSolvedMask] = useState<boolean[]>([false, false, false]);
     const [ratings, setRatings] = useState<Ratings>({});
     const [isTimerRunning, setIsTimerRunning] = useState(false);
+    const [sessionId, setSessionId] = useState<string>(() => uuid());
 
     useEffect(() => {
         if (!isTimerRunning) return;
@@ -100,6 +112,7 @@ const CompetitionPage: React.FC<CompetitionPageProps> = ({
     const startNewCompetition = () => {
         setupCompetition();
         setAnimationStage('ACTIVE');
+        setSessionId(uuid());
         onSessionStart();
     };
 
@@ -134,14 +147,35 @@ const CompetitionPage: React.FC<CompetitionPageProps> = ({
     const handleSubmitRatings = () => {
         const timeSpent = COMPETITION_DURATION - timeLeft;
         competitionProblems.forEach((problem, index) => {
-            if (solvedMask[index]) {
+            const solved = solvedMask[index];
+            if (solved) {
+                const rating = ratings[problem.id] || 5;
                 const newSolvedProblem: SolvedProblem = {
                     problem,
                     timeSpent,
-                    difficultyRating: ratings[problem.id] || 5,
+                    difficultyRating: rating,
                     solvedAt: new Date(),
+                    status: 'solved',
                 };
                 onProblemSolved(newSolvedProblem);
+                if (userId !== null) {
+                    void postAttempt({
+                        userId,
+                        problemId: problem.id,
+                        sessionId,
+                        status: 'solved',
+                        timeSpentSec: timeSpent,
+                        userRating: rating,
+                    });
+                }
+            } else if (userId !== null) {
+                void postAttempt({
+                    userId,
+                    problemId: problem.id,
+                    sessionId,
+                    status: 'skipped',
+                    timeSpentSec: timeSpent,
+                });
             }
         });
         setAnimationStage('RATING_EXITING');
