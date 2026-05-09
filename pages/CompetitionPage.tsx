@@ -182,8 +182,8 @@ const CompetitionPage: React.FC<CompetitionPageProps> = ({
                   <h1 className="text-5xl font-bold mb-4">Competition Mode</h1>
                   <p className="text-xl text-light/80 mb-8">You'll have 4.5 hours to solve 3 problems.</p>
                   <p className="text-sm text-light-secondary mb-6 max-w-xl mx-auto leading-relaxed">
-                      Problems are chosen with three different topics and increasing MOHS: roughly 5–10, then 15–35,
-                      then at least 25.
+                      Each contest picks three different topics with MOHS roughly 5–10, 15–35, and at least 25 on the
+                      three problems. Each new set is drawn uniformly from every valid combination.
                   </p>
                   {problemsLoading && (
                       <p className="text-light-secondary mb-6">Loading problems from the server…</p>
@@ -197,8 +197,8 @@ const CompetitionPage: React.FC<CompetitionPageProps> = ({
                   )}
                   {!problemsLoading && problems.length >= 3 && !competitionFeasible && (
                       <p className="text-light-secondary mb-6 max-w-lg mx-auto leading-relaxed">
-                          Not enough variety in the database to build a contest set (need three distinct topics with
-                          problems in the MOHS ranges above). Add more problems or relax data constraints.
+                          Not enough variety in the database to build a contest set (need three distinct topics and
+                          problems in each MOHS band: about 5–10, 15–35, and at least 25). Add more problems or widen coverage.
                       </p>
                   )}
                   <button

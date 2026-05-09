@@ -12,42 +12,40 @@ const SLOT2_MAX = 35;
 /** Slot 3: at least 25 MOHS */
 const SLOT3_MIN = 25;
 
-const SELECTION_ATTEMPTS = 20000;
-
 function topicKey(p: Problem): string {
   return (p.topic ?? '').trim() || '__unknown__';
 }
 
-function isValidP2(p1: Problem, p2: Problem): boolean {
-  if (p2.id === p1.id) return false;
-  if (topicKey(p2) === topicKey(p1)) return false;
-  if (p2.difficulty < SLOT2_MIN || p2.difficulty > SLOT2_MAX) return false;
-  if (p2.difficulty <= p1.difficulty) return false;
+function isValidTriple(p1: Problem, p2: Problem, p3: Problem): boolean {
+  if (p1.id === p2.id || p1.id === p3.id || p2.id === p3.id) return false;
+  const k1 = topicKey(p1);
+  const k2 = topicKey(p2);
+  const k3 = topicKey(p3);
+  if (k1 === k2 || k1 === k3 || k2 === k3) return false;
   return true;
 }
 
-function isValidP3(p1: Problem, p2: Problem, p3: Problem): boolean {
-  if (p3.id === p1.id || p3.id === p2.id) return false;
-  const k3 = topicKey(p3);
-  if (k3 === topicKey(p1) || k3 === topicKey(p2)) return false;
-  if (p3.difficulty < SLOT3_MIN) return false;
-  if (p3.difficulty <= p2.difficulty) return false;
-  return true;
+function pools(problems: Problem[]) {
+  const pool1 = problems.filter(
+    p => p.difficulty >= SLOT1_MIN && p.difficulty <= SLOT1_MAX,
+  );
+  const pool2 = problems.filter(
+    p => p.difficulty >= SLOT2_MIN && p.difficulty <= SLOT2_MAX,
+  );
+  const pool3 = problems.filter(p => p.difficulty >= SLOT3_MIN);
+  return { pool1, pool2, pool3 };
 }
 
 /**
- * Whether any triple exists: three distinct topics, MOHS strictly increasing,
- * within the configured MOHS bands for each slot.
+ * Whether any triple exists: three distinct topics, MOHS in each slot band.
+ * Order between slots is not enforced beyond those bands (e.g. P3 may be easier than P2).
  */
 export function canPickCompetitionProblems(problems: Problem[]): boolean {
-  const slot1 = problems.filter(
-    p => p.difficulty >= SLOT1_MIN && p.difficulty <= SLOT1_MAX,
-  );
-  for (const p1 of slot1) {
-    for (const p2 of problems) {
-      if (!isValidP2(p1, p2)) continue;
-      for (const p3 of problems) {
-        if (isValidP3(p1, p2, p3)) return true;
+  const { pool1, pool2, pool3 } = pools(problems);
+  for (const p1 of pool1) {
+    for (const p2 of pool2) {
+      for (const p3 of pool3) {
+        if (isValidTriple(p1, p2, p3)) return true;
       }
     }
   }
@@ -55,32 +53,29 @@ export function canPickCompetitionProblems(problems: Problem[]): boolean {
 }
 
 /**
- * Pick three problems: distinct topics, strictly increasing MOHS, random among valid triples.
- * Returns null if no triple satisfies constraints.
+ * Uniform random valid triple (same distribution every call → good variety on “Generate new”).
  */
 export function pickCompetitionProblems(problems: Problem[]): Problem[] | null {
-  const slot1 = problems.filter(
-    p => p.difficulty >= SLOT1_MIN && p.difficulty <= SLOT1_MAX,
-  );
-  if (slot1.length === 0) return null;
+  const { pool1, pool2, pool3 } = pools(problems);
+  if (pool1.length === 0 || pool2.length === 0 || pool3.length === 0) return null;
 
-  for (let i = 0; i < SELECTION_ATTEMPTS; i++) {
-    const p1 = slot1[randomIntExclusive(slot1.length)];
-    const p2Candidates = problems.filter(p => isValidP2(p1, p));
-    if (p2Candidates.length === 0) continue;
-    const p2 = p2Candidates[randomIntExclusive(p2Candidates.length)];
-    const p3Candidates = problems.filter(p => isValidP3(p1, p2, p));
-    if (p3Candidates.length === 0) continue;
-    const p3 = p3Candidates[randomIntExclusive(p3Candidates.length)];
-    return [p1, p2, p3];
+  let total = 0;
+  for (const p1 of pool1) {
+    for (const p2 of pool2) {
+      for (const p3 of pool3) {
+        if (isValidTriple(p1, p2, p3)) total++;
+      }
+    }
   }
+  if (total === 0) return null;
 
-  // Extremely unlikely: guarantee a triple if one exists (deterministic order).
-  for (const p1 of slot1) {
-    for (const p2 of problems) {
-      if (!isValidP2(p1, p2)) continue;
-      for (const p3 of problems) {
-        if (isValidP3(p1, p2, p3)) return [p1, p2, p3];
+  let target = randomIntExclusive(total);
+  for (const p1 of pool1) {
+    for (const p2 of pool2) {
+      for (const p3 of pool3) {
+        if (!isValidTriple(p1, p2, p3)) continue;
+        if (target === 0) return [p1, p2, p3];
+        target--;
       }
     }
   }
