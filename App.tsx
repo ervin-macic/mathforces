@@ -188,7 +188,7 @@ function App() {
               onLogoutClick={handleLogout}
           />
         )}
-        <main className={`flex-grow ${isImmersiveMode || isAboutPage || isSettingsPage || activePage === Page.Leaderboard || activePage === Page.Terms ? "" : "container mx-auto"}`}>
+        <main className={`flex-grow ${isImmersiveMode ? 'min-h-0' : ''} ${isImmersiveMode || isAboutPage || isSettingsPage || activePage === Page.Leaderboard || activePage === Page.Terms ? "" : "container mx-auto"}`}>
           {renderContent()}
         </main>
         {!isImmersiveMode && <Footer activePage={activePage} onNavigate={handleNavigate} />}

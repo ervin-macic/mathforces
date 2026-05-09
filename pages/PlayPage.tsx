@@ -4,6 +4,7 @@ import Timer from '../components/Timer';
 import TypewriterHint from '../components/TypewriterHint';
 import { MathJax } from 'better-react-mathjax';
 import { selectNextProblem } from '../lib/recommendationEngine';
+import { randomIntExclusive } from '../lib/random';
 
 declare const confetti: any;
 
@@ -40,8 +41,24 @@ const PlayPage: React.FC<PlayPageProps> = ({
   const [hintLevel, setHintLevel] = useState(0);
   const [isHintTyping, setIsHintTyping] = useState(false);
   const [lastAction, setLastAction] = useState<'solved' | 'skipped' | null>(null);
+  const [revealedAnswer, setRevealedAnswer] = useState(false);
+
+  const hintsSectionRef = useRef<HTMLDivElement>(null);
 
   const currentProblem = problems[currentProblemIndex];
+
+  useEffect(() => {
+    setRevealedAnswer(false);
+  }, [currentProblemIndex]);
+
+  useEffect(() => {
+    if (playView !== 'PLAYING') return;
+    if (hintLevel === 0 && !revealedAnswer) return;
+    const id = requestAnimationFrame(() => {
+      hintsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [hintLevel, revealedAnswer, isHintTyping, playView]);
 
   const goToNextProblem = useCallback(() => {
     setCurrentProblemIndex(currentIndex => {
@@ -83,6 +100,7 @@ const PlayPage: React.FC<PlayPageProps> = ({
       goToNextProblemRef.current();
       setHintLevel(0);
       setIsHintTyping(false);
+      setRevealedAnswer(false);
 
       timer = setTimeout(() => {
         setAnimationStage('PROBLEM_VIEW');
@@ -96,13 +114,15 @@ const PlayPage: React.FC<PlayPageProps> = ({
   }, [animationStage]);
 
   const handleStartSession = () => {
-    const randomIndex = Math.floor(Math.random() * problems.length);
+    if (problems.length === 0) return;
+    const randomIndex = randomIntExclusive(problems.length);
     const startProblem = problems[randomIndex];
     setCurrentProblemIndex(randomIndex);
     setSessionSolvedProblems([]);
     setSessionProblemIds(startProblem ? [startProblem.id] : []);
     setHintLevel(0);
     setIsHintTyping(false);
+    setRevealedAnswer(false);
     setAnimationStage('PROBLEM_VIEW');
     setPlayView('PLAYING');
     onSessionStart();
@@ -296,8 +316,8 @@ const PlayPage: React.FC<PlayPageProps> = ({
         &larr; End Session
       </button>
       {/* Problem View */}
-      <div className={`${problemClasses} overflow-y-auto overscroll-y-contain`}>
-        <div className="flex flex-col items-center justify-center min-h-full p-8 pt-24 md:pt-8">
+      <div className={`${problemClasses} min-h-0 overflow-y-auto overscroll-y-contain`}>
+        <div className="flex min-h-0 w-full flex-col items-center justify-start px-8 pb-[max(6rem,env(safe-area-inset-bottom,0px))] pt-24 md:pt-8">
           <div className="w-full max-w-5xl text-center">
             <div className="flex justify-end items-center mb-10 px-4">
               <Timer key={currentProblemIndex} onTimeUpdate={setCurrentTime} />
@@ -305,18 +325,6 @@ const PlayPage: React.FC<PlayPageProps> = ({
             <div className="text-left text-2xl text-light leading-relaxed mb-12 px-4 font-mono">
               <MathJax dynamic>{currentProblem.statement}</MathJax>
             </div>
-            {currentProblem.source_ref && (
-              <div className="text-left px-4 mb-6">
-                <a
-                  href={currentProblem.source_ref}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-light-secondary hover:text-accent transition-colors"
-                >
-                  {currentProblem.source_tag ? `[${currentProblem.source_tag}] ` : ''}Source ↗
-                </a>
-              </div>
-            )}
             <div className="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-6">
               <button onClick={handleSkipProblem} className="w-full sm:w-auto bg-secondary text-light px-8 py-3 rounded-lg hover:bg-accent hover:text-primary transition-all font-semibold text-lg shadow-md hover:shadow-lg">
                 Skip
@@ -331,7 +339,7 @@ const PlayPage: React.FC<PlayPageProps> = ({
                 Mark as Solved
               </button>
             </div>
-            <div className="mt-8 w-full max-w-4xl mx-auto text-left px-4">
+            <div ref={hintsSectionRef} className="mt-8 w-full max-w-4xl mx-auto text-left px-4">
               {Array.from({ length: hintLevel }).map((_, index) => (
                 <div key={index} className="bg-secondary/50 p-4 rounded-lg mb-3 text-light/90">
                   <p className="font-bold text-accent/80 mb-1">Hint {index + 1}:</p>
@@ -345,6 +353,54 @@ const PlayPage: React.FC<PlayPageProps> = ({
                   />
                 </div>
               ))}
+              {hintLevel === 3 && !isHintTyping && (
+                <div className="mt-6 space-y-4">
+                  {!revealedAnswer ? (
+                    <button
+                      type="button"
+                      onClick={() => setRevealedAnswer(true)}
+                      className="w-full sm:w-auto bg-accent/20 text-accent border border-accent/40 px-6 py-3 rounded-lg font-semibold hover:bg-accent/30 transition-colors"
+                    >
+                      Show solution & source
+                    </button>
+                  ) : (
+                    <div className="bg-secondary/50 p-4 rounded-lg space-y-4 text-light/90">
+                      {(currentProblem.source_ref || currentProblem.source_tag) && (
+                        <div>
+                          <p className="font-bold text-accent/80 mb-2">Source</p>
+                          {currentProblem.source_ref ? (
+                            <a
+                              href={currentProblem.source_ref}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm text-light-secondary hover:text-accent transition-colors break-all"
+                            >
+                              {currentProblem.source_tag ? `[${currentProblem.source_tag}] ` : ''}
+                              {currentProblem.source_ref}
+                              {' '}
+                              ↗
+                            </a>
+                          ) : (
+                            <p className="text-sm text-light/80">{currentProblem.source_tag}</p>
+                          )}
+                        </div>
+                      )}
+                      <div>
+                        <p className="font-bold text-accent/80 mb-2">Solution</p>
+                        {currentProblem.solution ? (
+                          <div className="text-lg text-light leading-relaxed font-mono">
+                            <MathJax dynamic>{currentProblem.solution}</MathJax>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-light-secondary">
+                            No written solution in the dataset for this problem.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
