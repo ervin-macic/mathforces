@@ -8,8 +8,7 @@ if (!rootElement) {
   throw new Error("Could not find root element to mount to");
 }
 
-const GOOGLE_CLIENT_ID =
-  ((import.meta as any).env?.VITE_GOOGLE_CLIENT_ID as string | undefined) ?? '';
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '';
 
 if (!GOOGLE_CLIENT_ID) {
   console.warn(
