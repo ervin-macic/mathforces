@@ -24,7 +24,8 @@ CREATE TABLE IF NOT EXISTS users (
   created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_users_google_sub ON users(google_sub);
+-- Indexes on google_sub are created in database.ts after ALTER migrations so
+-- existing DBs (predating OAuth columns) do not fail here with "no such column".
 
 -- ── Problems ───────────────────────────────────────────────────────────────
 -- mohs: -60 to +60 stored in multiples of 5.
