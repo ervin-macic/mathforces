@@ -47,6 +47,15 @@ export function getDb(): Database.Database {
   // Each ALTER TABLE is intentionally separate so one failure does not block others.
   const migrations = [
     `ALTER TABLE problems ADD COLUMN solution TEXT NOT NULL DEFAULT ''`,
+    // Google OAuth user columns. Existing rows keep their password_hash; new
+    // Google-only rows insert '' as a sentinel since SQLite cannot drop the
+    // legacy NOT NULL constraint via ALTER.
+    `ALTER TABLE users ADD COLUMN google_sub   TEXT`,
+    `ALTER TABLE users ADD COLUMN email        TEXT`,
+    `ALTER TABLE users ADD COLUMN display_name TEXT`,
+    `ALTER TABLE users ADD COLUMN picture_url  TEXT`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_sub_unique ON users(google_sub) WHERE google_sub IS NOT NULL`,
+    `CREATE INDEX IF NOT EXISTS idx_users_google_sub ON users(google_sub)`,
   ];
   for (const sql of migrations) {
     try { _db.exec(sql); } catch { /* column already exists */ }

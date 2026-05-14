@@ -5,19 +5,21 @@
  * the Vite dev server without the backend), every call falls back gracefully
  * to the in-memory constants so the app remains functional.
  *
- * Set VITE_API_URL in .env.local to point at the backend, e.g.:
- *   VITE_API_URL=http://localhost:3001
+ * In local dev, leave VITE_API_URL empty — the Vite proxy forwards /api and
+ * /health to localhost:3001. Set VITE_API_URL only when running without the
+ * Vite dev server (e.g. vite preview or a separate deployment).
  */
 
 import { Problem, SolvedProblem } from '../types';
 import { PROBLEMS } from '../constants';
 import { selectNextProblem } from './recommendationEngine';
+import { withAuthHeaders, AuthUser } from './auth';
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL ?? '';
 
 if (typeof window !== 'undefined') {
   console.log('[MathForces apiClient] init', {
-    VITE_API_URL: API_BASE || '(empty — same-origin relative URLs)',
+    VITE_API_URL: API_BASE || '(empty — using Vite proxy / same-origin)',
     viteMode: (import.meta as any).env?.MODE,
   });
 }
@@ -25,13 +27,19 @@ if (typeof window !== 'undefined') {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
+  const merged = withAuthHeaders({
     ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options?.headers ?? {}),
+    },
   });
+  const res = await fetch(`${API_BASE}${path}`, merged);
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);
-    throw new Error(`API ${path} → ${res.status}: ${text}`);
+    const err = new Error(`API ${path} → ${res.status}: ${text}`) as Error & { status?: number };
+    err.status = res.status;
+    throw err;
   }
   return res.json() as Promise<T>;
 }
@@ -41,16 +49,12 @@ let _backendAvailable: boolean | null = null;
 
 async function isBackendAvailable(): Promise<boolean> {
   if (_backendAvailable !== null) return _backendAvailable;
-  if (!API_BASE) {
-    console.log(
-      '[MathForces apiClient] no VITE_API_URL — treating backend as unavailable; will use embedded PROBLEMS',
-    );
-    _backendAvailable = false;
-    return false;
-  }
-  const healthUrl = `${API_BASE}/health`;
+  // Use relative URL when no explicit API_BASE; the Vite dev proxy routes
+  // /health → Express. In production the Express server serves the frontend
+  // at the same origin so relative URLs work there too.
+  const healthUrl = API_BASE ? `${API_BASE}/health` : '/health';
   try {
-    const res = await fetch(healthUrl, { method: 'GET' });
+    const res = await fetch(healthUrl, { method: 'GET', signal: AbortSignal.timeout(3000) });
     _backendAvailable = res.ok;
     console.log('[MathForces apiClient] GET /health', {
       healthUrl,
@@ -165,24 +169,66 @@ export async function postAttempt(payload: AttemptPayload): Promise<void> {
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
-export interface AuthResult {
-  userId: number;
-  username: string;
+export interface GoogleAuthResult extends AuthUser {
   token: string;
 }
 
-export async function register(username: string, password: string): Promise<AuthResult> {
-  return apiFetch<AuthResult>('/api/users/register', {
+/** Exchange a Google ID token (credential) for a Mathforces session. */
+export async function googleSignIn(idToken: string): Promise<GoogleAuthResult> {
+  return apiFetch<GoogleAuthResult>('/api/users/google', {
     method: 'POST',
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ idToken }),
   });
 }
 
-export async function login(username: string, password: string): Promise<AuthResult> {
-  return apiFetch<AuthResult>('/api/users/login', {
-    method: 'POST',
-    body: JSON.stringify({ username, password }),
-  });
+/** Validate the stored JWT and fetch the current user. Returns null on 401. */
+export async function fetchMe(): Promise<AuthUser | null> {
+  if (!(await isBackendAvailable())) return null;
+  try {
+    return await apiFetch<AuthUser>('/api/users/me');
+  } catch (err) {
+    const status = (err as { status?: number }).status;
+    if (status === 401) return null;
+    console.warn('[apiClient] /api/users/me failed', err);
+    return null;
+  }
+}
+
+// ─── Attempts (history) ──────────────────────────────────────────────────────
+
+interface AttemptRow {
+  id: number;
+  sessionId: string;
+  status: 'solved' | 'skipped';
+  timeSpent: number;
+  difficultyRating: number | null;
+  usedHintLevel: number;
+  solvedAt: string;
+  problem: Problem;
+}
+
+/** Load the full attempt history for a user. Empty array if backend is down. */
+export async function fetchUserAttempts(userId: number): Promise<SolvedProblem[]> {
+  if (!(await isBackendAvailable())) return [];
+  try {
+    const rows = await apiFetch<AttemptRow[]>(`/api/attempts?userId=${userId}`);
+    // Server returns most-recent first; reverse so chronological order matches
+    // the "append on solve" semantics used elsewhere in the app.
+    return rows
+      .slice()
+      .reverse()
+      .map(r => ({
+        problem: r.problem,
+        timeSpent: r.timeSpent,
+        difficultyRating: r.difficultyRating ?? 0,
+        solvedAt: new Date(r.solvedAt),
+        usedHintLevel: r.usedHintLevel,
+        status: r.status,
+      }));
+  } catch (err) {
+    console.warn('[apiClient] /api/attempts fetch failed', err);
+    return [];
+  }
 }
 
 // ─── Leaderboard ─────────────────────────────────────────────────────────────

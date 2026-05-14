@@ -10,12 +10,22 @@ PRAGMA journal_mode = WAL;
 PRAGMA foreign_keys = ON;
 
 -- ── Users ──────────────────────────────────────────────────────────────────
+-- password_hash is kept for legacy email/password rows (used a sentinel '' for
+-- Google-only accounts). Google identity columns (google_sub/email/display_name/
+-- picture_url) are added so the same row can represent a Google-authenticated user.
 CREATE TABLE IF NOT EXISTS users (
-  id           INTEGER PRIMARY KEY AUTOINCREMENT,
-  username     TEXT    NOT NULL UNIQUE COLLATE NOCASE,
-  password_hash TEXT   NOT NULL,
-  created_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  username      TEXT    NOT NULL UNIQUE COLLATE NOCASE,
+  password_hash TEXT    NOT NULL DEFAULT '',
+  google_sub    TEXT             UNIQUE,
+  email         TEXT,
+  display_name  TEXT,
+  picture_url   TEXT,
+  created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
 );
+
+-- Indexes on google_sub are created in database.ts after ALTER migrations so
+-- existing DBs (predating OAuth columns) do not fail here with "no such column".
 
 -- ── Problems ───────────────────────────────────────────────────────────────
 -- mohs: -60 to +60 stored in multiples of 5.
