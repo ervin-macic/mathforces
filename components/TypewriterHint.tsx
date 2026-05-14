@@ -19,9 +19,11 @@ const TypewriterHint: React.FC<TypewriterHintProps> = ({ text, onTypingComplete 
   useEffect(() => {
     if (isTyping) {
       const getTypingDelay = () => {
-        // A bit of randomness to feel more natural
-        if (Math.random() < 0.06) { return 75 + Math.random() * 50; }
-        return 8;
+        // A bit of randomness to feel more natural (faster base tick than before)
+        if (Math.random() < 0.03) {
+          return 50 + Math.random() * 40;
+        }
+        return 5;
       };
 
       const timer = setTimeout(() => {

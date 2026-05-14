@@ -112,7 +112,7 @@ const PlayPage: React.FC<PlayPageProps> = ({
       hintsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
     return () => cancelAnimationFrame(id);
-  }, [hintLevel, revealedAnswer, isHintTyping, playView]);
+  }, [hintLevel, revealedAnswer, playView]);
 
   const goToNextProblem = useCallback(() => {
     setCurrentProblemIndex(currentIndex => {
@@ -388,19 +388,24 @@ const PlayPage: React.FC<PlayPageProps> = ({
   }
 
   return (
-    <div className="relative h-screen overflow-hidden">
-      <button onClick={handleEndSession}
-              className="absolute top-8 left-8 text-light-secondary hover:text-accent transition-colors z-20">
-        &larr; End Session
-      </button>
+    <div className="relative min-h-0 h-dvh max-h-dvh overflow-hidden">
       {/* Problem View */}
       <div className={`${problemClasses} min-h-0 overflow-y-auto overscroll-y-contain`}>
-        <div className="flex min-h-0 w-full flex-col items-center justify-start px-8 pb-[max(6rem,env(safe-area-inset-bottom,0px))] pt-24 md:pt-8">
+        <div
+          className="sticky top-0 z-30 flex w-full shrink-0 items-center justify-between gap-4 border-b border-secondary/40 bg-primary/95 px-4 pb-3 backdrop-blur-sm pt-[max(0.75rem,env(safe-area-inset-top,0px))] sm:px-8"
+        >
+          <button
+            type="button"
+            onClick={handleEndSession}
+            className="shrink-0 text-left text-sm text-light-secondary hover:text-accent transition-colors sm:text-base"
+          >
+            &larr; End Session
+          </button>
+          <Timer key={currentProblemIndex} onTimeUpdate={setCurrentTime} />
+        </div>
+        <div className="flex min-h-0 w-full flex-col items-center justify-start px-4 pb-[max(6rem,env(safe-area-inset-bottom,0px))] pt-4 sm:px-8">
           <div className="w-full max-w-5xl text-center">
-            <div className="flex justify-end items-center mb-10 px-4">
-              <Timer key={currentProblemIndex} onTimeUpdate={setCurrentTime} />
-            </div>
-            <div className="text-left text-2xl text-light leading-relaxed mb-12 px-4 font-mono">
+            <div className="text-left text-base text-light leading-snug sm:text-lg sm:leading-relaxed md:text-xl lg:text-2xl mb-8 px-2 font-mono md:mb-10 md:px-4">
               <MathJax dynamic>{currentProblem.statement}</MathJax>
             </div>
             <div className="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-6">
@@ -417,7 +422,10 @@ const PlayPage: React.FC<PlayPageProps> = ({
                 Mark as Solved
               </button>
             </div>
-            <div ref={hintsSectionRef} className="mt-8 w-full max-w-4xl mx-auto text-left px-4">
+            <div
+              ref={hintsSectionRef}
+              className="mt-8 w-full max-w-4xl mx-auto scroll-mt-28 text-left px-2 sm:px-4 md:scroll-mt-32"
+            >
               {Array.from({ length: hintLevel }).map((_, index) => (
                 <div key={index} className="bg-secondary/50 p-4 rounded-lg mb-3 text-light/90">
                   <p className="font-bold text-accent/80 mb-1">Hint {index + 1}:</p>
