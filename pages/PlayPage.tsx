@@ -3,6 +3,7 @@ import { SolvedProblem, Problem } from '../types';
 import Timer from '../components/Timer';
 import TypewriterHint from '../components/TypewriterHint';
 import { MathJaxFitBlock } from '../components/MathJaxFitBlock';
+import { DifficultyStarRating } from '../components/DifficultyStarRating';
 import { selectNextProblem } from '../lib/recommendationEngine';
 import { randomIntExclusive } from '../lib/random';
 import { postAttempt } from '../lib/apiClient';
@@ -116,8 +117,6 @@ const PlayPage: React.FC<PlayPageProps> = ({
   const [sessionProblemIds, setSessionProblemIds] = useState<number[]>([]);
   const [currentTime, setCurrentTime] = useState(0);
   const [animationStage, setAnimationStage] = useState<AnimationStage>('PROBLEM_VIEW');
-  const [selectedRating, setSelectedRating] = useState<number | null>(null);
-  const [hoverRating, setHoverRating] = useState<number | null>(null);
   const [hintLevel, setHintLevel] = useState(0);
   const [isHintTyping, setIsHintTyping] = useState(false);
   const [lastAction, setLastAction] = useState<'solved' | 'skipped' | null>(null);
@@ -190,8 +189,6 @@ const PlayPage: React.FC<PlayPageProps> = ({
 
       timer = setTimeout(() => {
         setAnimationStage('PROBLEM_VIEW');
-        setSelectedRating(null);
-        setHoverRating(null);
       }, 20);
     }
 
@@ -558,69 +555,10 @@ const PlayPage: React.FC<PlayPageProps> = ({
           <div className="bg-secondary p-8 rounded-lg shadow-2xl w-full max-w-lg mx-4 text-center">
             <h2 className="text-2xl font-bold mb-4 text-accent">Problem Solved!</h2>
             <p className="mb-6 text-light/80">Rate the difficulty of this problem.</p>
-            <div className="mb-8" onMouseLeave={() => setHoverRating(null)}>
-              {/* Five stars on narrow viewports; each maps to 2,4,…,10 on the same 1–10 scale */}
-              <div className="flex justify-center gap-2 sm:hidden">
-                {[...Array(5)].map((_, i) => {
-                  const ratingValue = (i + 1) * 2;
-                  return (
-                    <button
-                      key={ratingValue}
-                      type="button"
-                      onClick={() => {
-                        setSelectedRating(ratingValue);
-                        setTimeout(() => handleConfirmSolve(ratingValue), 150);
-                      }}
-                      onMouseEnter={() => setHoverRating(ratingValue)}
-                      className="group focus:outline-none"
-                      aria-label={`Rate ${ratingValue} out of 10`}
-                    >
-                      <svg
-                        className={`h-8 w-8 transition-colors ${
-                          ratingValue <= (hoverRating || selectedRating || 0)
-                            ? 'text-accent'
-                            : 'text-light-secondary'
-                        }`}
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.959a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.368 2.448a1 1 0 00-.364 1.118l1.287 3.959c.3.921-.755 1.688-1.54 1.118l-3.368-2.448a1 1 0 00-1.176 0l-3.368 2.448c-.784.57-1.838-.197-1.539-1.118l1.287-3.959a1 1 0 00-.364-1.118L2.05 9.386c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69L9.049 2.927z" />
-                      </svg>
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="hidden justify-center gap-2 sm:flex">
-                {[...Array(10)].map((_, i) => {
-                  const ratingValue = i + 1;
-                  return (
-                    <button
-                      key={ratingValue}
-                      type="button"
-                      onClick={() => {
-                        setSelectedRating(ratingValue);
-                        setTimeout(() => handleConfirmSolve(ratingValue), 150);
-                      }}
-                      onMouseEnter={() => setHoverRating(ratingValue)}
-                      className="group focus:outline-none"
-                      aria-label={`Rate ${ratingValue} out of 10`}
-                    >
-                      <svg
-                        className={`h-8 w-8 transition-colors ${
-                          ratingValue <= (hoverRating || selectedRating || 0)
-                            ? 'text-accent'
-                            : 'text-light-secondary'
-                        }`}
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.959a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.368 2.448a1 1 0 00-.364 1.118l1.287 3.959c.3.921-.755 1.688-1.54 1.118l-3.368-2.448a1 1 0 00-1.176 0l-3.368 2.448c-.784.57-1.838-.197-1.539-1.118l1.287-3.959a1 1 0 00-.364-1.118L2.05 9.386c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69L9.049 2.927z" />
-                      </svg>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            <DifficultyStarRating
+              active={animationStage === 'RATING_VIEW'}
+              onChooseRating={handleConfirmSolve}
+            />
             <p className="text-sm text-light-secondary">Select a star to continue to the next problem.</p>
           </div>
         </div>
