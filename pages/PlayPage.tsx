@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { SolvedProblem, Problem } from '../types';
 import Timer from '../components/Timer';
 import TypewriterHint from '../components/TypewriterHint';
@@ -32,6 +32,13 @@ function uuid(): string {
         return (crypto as Crypto).randomUUID();
     }
     return 'sess-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+/** Play mode requires a full hint ladder (DB columns hint1–hint3). */
+function problemHasAllHints(problem: Problem): boolean {
+  const hints = problem.hints;
+  if (!hints || hints.length < 3) return false;
+  return hints.slice(0, 3).every(h => typeof h === 'string' && h.trim() !== '');
 }
 
 /** Only http(s) URLs become anchors; plain-text refs stay non-interactive. */
@@ -85,6 +92,11 @@ const PlayPage: React.FC<PlayPageProps> = ({
   onSessionStart,
   onBackToAbout,
 }) => {
+  const playableProblems = useMemo(
+    () => problems.filter(problemHasAllHints),
+    [problems],
+  );
+
   const [playView, setPlayView] = useState<PlayView>('START_SCREEN');
   const [currentProblemIndex, setCurrentProblemIndex] = useState(0);
   const [sessionSolvedProblems, setSessionSolvedProblems] = useState<SolvedProblem[]>([]);
@@ -102,7 +114,12 @@ const PlayPage: React.FC<PlayPageProps> = ({
 
   const hintsSectionRef = useRef<HTMLDivElement>(null);
 
-  const currentProblem = problems[currentProblemIndex];
+  const currentProblem = playableProblems[currentProblemIndex];
+
+  useEffect(() => {
+    if (playableProblems.length === 0) return;
+    setCurrentProblemIndex(i => Math.min(i, playableProblems.length - 1));
+  }, [playableProblems]);
 
   useEffect(() => {
     setRevealedAnswer(false);
@@ -119,11 +136,11 @@ const PlayPage: React.FC<PlayPageProps> = ({
 
   const goToNextProblem = useCallback(() => {
     setCurrentProblemIndex(currentIndex => {
-      const currentProblem = problems[currentIndex];
+      const currentProblem = playableProblems[currentIndex];
       const allSolved = [...solvedProblems, ...sessionSolvedProblems];
 
       const nextIndex = selectNextProblem(
-        problems,
+        playableProblems,
         allSolved,
         sessionProblemIds,
         currentProblem?.id ?? null,
@@ -131,7 +148,7 @@ const PlayPage: React.FC<PlayPageProps> = ({
       );
 
       // Track the newly chosen problem in the session history
-      const nextProblem = problems[nextIndex];
+      const nextProblem = playableProblems[nextIndex];
       if (nextProblem) {
         setSessionProblemIds(prev => [...prev, nextProblem.id]);
       }
@@ -139,7 +156,7 @@ const PlayPage: React.FC<PlayPageProps> = ({
       return nextIndex;
     });
     setLastAction(null);
-  }, [problems, lastAction, solvedProblems, sessionSolvedProblems, sessionProblemIds]);
+  }, [playableProblems, lastAction, solvedProblems, sessionSolvedProblems, sessionProblemIds]);
 
   // Keep a stable ref to the latest goToNextProblem so the animation effect
   // doesn't need it as a dependency — prevents effect teardown from cancelling
@@ -171,9 +188,9 @@ const PlayPage: React.FC<PlayPageProps> = ({
   }, [animationStage]);
 
   const handleStartSession = () => {
-    if (problems.length === 0) return;
-    const randomIndex = randomIntExclusive(problems.length);
-    const startProblem = problems[randomIndex];
+    if (playableProblems.length === 0) return;
+    const randomIndex = randomIntExclusive(playableProblems.length);
+    const startProblem = playableProblems[randomIndex];
     setCurrentProblemIndex(randomIndex);
     setSessionSolvedProblems([]);
     setSessionProblemIds(startProblem ? [startProblem.id] : []);
@@ -214,7 +231,7 @@ const PlayPage: React.FC<PlayPageProps> = ({
   };
 
   const handleConfirmSolve = (rating: number) => {
-    const problem = problems[currentProblemIndex];
+    const problem = playableProblems[currentProblemIndex];
     const newSolvedProblem: SolvedProblem = {
       problem,
       timeSpent: currentTime,
@@ -243,7 +260,7 @@ const PlayPage: React.FC<PlayPageProps> = ({
 
   const handleSkipProblem = () => {
     // Record the skip so it contributes to the knowledge profile
-    const problem = problems[currentProblemIndex];
+    const problem = playableProblems[currentProblemIndex];
     const skippedEntry: SolvedProblem = {
       problem,
       timeSpent: currentTime,
@@ -301,7 +318,7 @@ const PlayPage: React.FC<PlayPageProps> = ({
   const { problemClasses, ratingClasses } = getAnimationClasses();
 
   if (playView === 'START_SCREEN') {
-    const canStart = !problemsLoading && problems.length > 0;
+    const canStart = !problemsLoading && playableProblems.length > 0;
     return (
       <div className="flex min-h-dvh items-center justify-center px-4 py-12">
         <div className="w-full max-w-lg">
@@ -341,6 +358,12 @@ const PlayPage: React.FC<PlayPageProps> = ({
               No problems loaded. Start the API and set{' '}
               <code className="text-accent font-mono">VITE_API_URL</code> in{' '}
               <code className="text-accent font-mono">.env.local</code>.
+            </p>
+          )}
+          {!problemsLoading && problems.length > 0 && playableProblems.length === 0 && (
+            <p className="text-center text-light-secondary text-sm mb-5 leading-relaxed">
+              No problems with a full set of hints are available yet. Add hints in the database
+              to start a session.
             </p>
           )}
 
