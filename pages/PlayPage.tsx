@@ -26,6 +26,13 @@ interface PlayPageProps {
     onBackToAbout?: () => void;
 }
 
+/**
+ * Shared math body scale for statement, hints, and solution: readable on phones,
+ * held at `text-base` through tablet (`md`), then steps up on large screens.
+ */
+const PLAY_MATH_BODY =
+  'text-base leading-snug sm:leading-relaxed md:text-base md:leading-relaxed lg:text-xl lg:leading-relaxed xl:text-2xl';
+
 /** Cheap UUID v4-ish generator for session ids. */
 function uuid(): string {
     if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -320,60 +327,66 @@ const PlayPage: React.FC<PlayPageProps> = ({
   if (playView === 'START_SCREEN') {
     const canStart = !problemsLoading && playableProblems.length > 0;
     return (
-      <div className="flex min-h-dvh items-center justify-center px-4 py-12">
-        <div className="w-full max-w-lg">
-          {onBackToAbout && (
+      <div className="flex min-h-dvh flex-col">
+        {onBackToAbout ? (
+          <header className="shrink-0 px-4 pt-[max(0.75rem,env(safe-area-inset-top,0px))] sm:px-8 sm:pt-6">
+            <div className="mx-auto w-full max-w-lg">
+              <button
+                type="button"
+                onClick={onBackToAbout}
+                className="w-full text-left text-sm text-light-secondary transition-colors hover:text-accent sm:text-base"
+              >
+                &larr; Back to About
+              </button>
+            </div>
+          </header>
+        ) : null}
+        <div className="flex min-h-0 flex-1 flex-col justify-center px-4 pb-12 pt-2 sm:px-8 sm:py-12">
+          <div className="mx-auto w-full max-w-lg">
+            <div className="text-center mb-8">
+              <h1 className="text-4xl font-bold text-light mb-2 tracking-tight">Practice</h1>
+              <p className="text-light/60">One problem at a time, adapted to you.</p>
+            </div>
+
+            <div className="bg-secondary/50 border border-secondary rounded-2xl p-6 mb-6 space-y-3">
+              {[
+                { icon: '∞', text: 'Problems served until you end the session' },
+                { icon: '💡', text: 'Up to 3 progressive hints per problem — reveal only what you need' },
+                { icon: '📈', text: 'MOHS difficulty adapts based on your solve history' },
+                { icon: '⏱', text: 'Timer per problem — visible but no time limit' },
+              ].map(item => (
+                <div key={item.text} className="flex items-start gap-3 text-sm text-light/65">
+                  <span className="shrink-0 w-5 text-center">{item.icon}</span>
+                  <span>{item.text}</span>
+                </div>
+              ))}
+            </div>
+
+            {problemsLoading && (
+              <p className="text-center text-light-secondary text-sm mb-5">Loading problems…</p>
+            )}
+            {!problemsLoading && problems.length === 0 && (
+              <p className="text-center text-light-secondary text-sm mb-5 leading-relaxed">
+                No problems loaded. Start the API and set{' '}
+                <code className="text-accent font-mono">VITE_API_URL</code> in{' '}
+                <code className="text-accent font-mono">.env.local</code>.
+              </p>
+            )}
+            {!problemsLoading && problems.length > 0 && playableProblems.length === 0 && (
+              <p className="text-center text-light-secondary text-sm mb-5 leading-relaxed">
+                No problems with a full set of hints are available yet. Add hints in the database
+                to start a session.
+              </p>
+            )}
+
             <button
-              type="button"
-              onClick={onBackToAbout}
-              className="mb-6 w-full text-left text-light-secondary hover:text-accent transition-colors sm:mb-8"
+              onClick={handleStartSession}
+              disabled={!canStart}
+              className="w-full bg-accent text-primary font-bold text-xl py-4 rounded-xl hover:opacity-90 transition-all shadow-md shadow-black/20 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              &larr; Back to About
+              {problemsLoading ? 'Loading…' : 'Start Session'}
             </button>
-          )}
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-light mb-2 tracking-tight">Practice</h1>
-            <p className="text-light/60">One problem at a time, adapted to you.</p>
           </div>
-
-          <div className="bg-secondary/50 border border-secondary rounded-2xl p-6 mb-6 space-y-3">
-            {[
-              { icon: '∞', text: 'Problems served until you end the session' },
-              { icon: '💡', text: 'Up to 3 progressive hints per problem — reveal only what you need' },
-              { icon: '📈', text: 'MOHS difficulty adapts based on your solve history' },
-              { icon: '⏱', text: 'Timer per problem — visible but no time limit' },
-            ].map(item => (
-              <div key={item.text} className="flex items-start gap-3 text-sm text-light/65">
-                <span className="shrink-0 w-5 text-center">{item.icon}</span>
-                <span>{item.text}</span>
-              </div>
-            ))}
-          </div>
-
-          {problemsLoading && (
-            <p className="text-center text-light-secondary text-sm mb-5">Loading problems…</p>
-          )}
-          {!problemsLoading && problems.length === 0 && (
-            <p className="text-center text-light-secondary text-sm mb-5 leading-relaxed">
-              No problems loaded. Start the API and set{' '}
-              <code className="text-accent font-mono">VITE_API_URL</code> in{' '}
-              <code className="text-accent font-mono">.env.local</code>.
-            </p>
-          )}
-          {!problemsLoading && problems.length > 0 && playableProblems.length === 0 && (
-            <p className="text-center text-light-secondary text-sm mb-5 leading-relaxed">
-              No problems with a full set of hints are available yet. Add hints in the database
-              to start a session.
-            </p>
-          )}
-
-          <button
-            onClick={handleStartSession}
-            disabled={!canStart}
-            className="w-full bg-accent text-primary font-bold text-xl py-4 rounded-xl hover:opacity-90 transition-all shadow-md shadow-black/20 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {problemsLoading ? 'Loading…' : 'Start Session'}
-          </button>
         </div>
       </div>
     );
@@ -425,7 +438,7 @@ const PlayPage: React.FC<PlayPageProps> = ({
   return (
     <div className="relative min-h-0 h-dvh max-h-dvh overflow-hidden">
       {/* Problem View */}
-      <div className={`${problemClasses} min-h-0 overflow-y-auto overscroll-y-contain`}>
+      <div className={`${problemClasses} min-h-0 min-w-0 overflow-y-auto overscroll-y-contain`}>
         <div
           className="sticky top-0 z-30 flex w-full shrink-0 items-center justify-between gap-4 border-b border-secondary/40 bg-primary/95 px-4 pb-3 backdrop-blur-sm pt-[max(0.75rem,env(safe-area-inset-top,0px))] sm:px-8"
         >
@@ -438,22 +451,34 @@ const PlayPage: React.FC<PlayPageProps> = ({
           </button>
           <Timer key={currentProblemIndex} onTimeUpdate={setCurrentTime} />
         </div>
-        <div className="flex min-h-0 w-full flex-col items-center justify-start px-4 pb-[max(6rem,env(safe-area-inset-bottom,0px))] pt-4 sm:px-8">
-          <div className="w-full max-w-5xl text-center">
-            <div className="text-left text-base text-light leading-snug sm:text-lg sm:leading-relaxed md:text-xl lg:text-2xl mb-8 px-2 font-mono md:mb-10 md:px-4">
-              <MathJax dynamic>{currentProblem.statement}</MathJax>
+        <div className="flex min-h-0 min-w-0 w-full flex-col items-center justify-start px-4 pb-[max(6rem,env(safe-area-inset-bottom,0px))] pt-4 sm:px-8">
+          <div className="w-full min-w-0 max-w-5xl text-center">
+            {/* Phones: smaller type + horizontal scroll for wide MathJax; sm+ unchanged visually */}
+            <div className="mb-8 w-full min-w-0 max-w-full overflow-x-auto overscroll-x-contain px-2 text-left [scrollbar-gutter:stable] sm:mb-10 sm:overflow-x-visible sm:px-4">
+              <div
+                className={`inline-block min-w-full text-left text-light font-mono ${PLAY_MATH_BODY}`}
+              >
+                <MathJax dynamic>{currentProblem.statement}</MathJax>
+              </div>
             </div>
-            <div className="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-6">
-              <button onClick={handleSkipProblem} className="w-full sm:w-auto bg-secondary text-light px-8 py-3 rounded-lg hover:bg-accent hover:text-primary transition-all font-semibold text-lg shadow-md hover:shadow-lg">
+            <div className="flex flex-col sm:flex-row justify-center items-center space-y-3 sm:space-y-0 sm:space-x-6">
+              <button
+                onClick={handleSkipProblem}
+                className="w-full sm:w-auto bg-secondary text-light rounded-lg px-5 py-2.5 text-sm font-semibold shadow-md transition-all hover:bg-accent hover:text-primary hover:shadow-lg sm:px-8 sm:py-3 sm:text-lg"
+              >
                 Skip
               </button>
               <button
                 onClick={handleRequestHint}
                 disabled={hintLevel >= 3 || isHintTyping}
-                className="w-full sm:w-auto bg-secondary text-light px-8 py-3 rounded-lg hover:bg-accent hover:text-primary transition-all font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg">
+                className="w-full sm:w-auto bg-secondary text-light rounded-lg px-5 py-2.5 text-sm font-semibold shadow-md transition-all hover:bg-accent hover:text-primary hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 sm:px-8 sm:py-3 sm:text-lg"
+              >
                 Hint {hintLevel > 0 ? `(${hintLevel}/3)` : ''}
               </button>
-              <button onClick={handleSolveProblem} className="w-full sm:w-auto bg-accent text-primary font-bold px-8 py-3 rounded-lg hover:opacity-90 transition-all text-lg shadow-md hover:shadow-lg">
+              <button
+                onClick={handleSolveProblem}
+                className="w-full sm:w-auto rounded-lg bg-accent px-5 py-2.5 text-sm font-bold text-primary shadow-md transition-all hover:opacity-90 hover:shadow-lg sm:px-8 sm:py-3 sm:text-lg"
+              >
                 Mark as Solved
               </button>
             </div>
@@ -462,8 +487,11 @@ const PlayPage: React.FC<PlayPageProps> = ({
               className="mt-8 w-full max-w-4xl mx-auto scroll-mt-28 text-left px-2 sm:px-4 md:scroll-mt-32"
             >
               {Array.from({ length: hintLevel }).map((_, index) => (
-                <div key={index} className="bg-secondary/50 p-4 rounded-lg mb-3 text-light/90">
-                  <p className="font-bold text-accent/80 mb-1">Hint {index + 1}:</p>
+                <div
+                  key={index}
+                  className={`bg-secondary/50 p-4 rounded-lg mb-3 text-light/90 font-mono ${PLAY_MATH_BODY}`}
+                >
+                  <p className="font-bold text-accent/80 mb-1 text-sm sm:text-base">Hint {index + 1}:</p>
                   <TypewriterHint
                     text={currentProblem.hints[index]}
                     onTypingComplete={() => {
@@ -492,8 +520,12 @@ const PlayPage: React.FC<PlayPageProps> = ({
                       <div>
                         <p className="font-bold text-accent/80 mb-2">Solution</p>
                         {currentProblem.solution ? (
-                          <div className="min-w-0 max-w-full overflow-x-auto text-lg text-light leading-relaxed font-mono [scrollbar-gutter:stable]">
-                            <MathJax dynamic>{currentProblem.solution}</MathJax>
+                          <div className="min-w-0 max-w-full overflow-x-auto overscroll-x-contain text-left [scrollbar-gutter:stable] sm:overflow-x-visible">
+                            <div
+                              className={`inline-block min-w-full text-light font-mono ${PLAY_MATH_BODY}`}
+                            >
+                              <MathJax dynamic>{currentProblem.solution}</MathJax>
+                            </div>
                           </div>
                         ) : (
                           <p className="text-sm text-light-secondary">

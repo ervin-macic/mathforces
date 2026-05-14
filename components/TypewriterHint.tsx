@@ -39,14 +39,14 @@ const TypewriterHint: React.FC<TypewriterHintProps> = ({ text, onTypingComplete 
   
   if (isTyping) {
     return (
-      <p className="leading-relaxed font-mono">
+      <p className="text-inherit leading-inherit font-inherit">
         {displayedText}
         {isTyping && <span className="inline-block w-2 h-5 bg-accent animate-pulse ml-1 align-bottom"></span>}
       </p>
     );
   }
 
-  return <MathJax inline dynamic className="leading-relaxed font-mono">{text}</MathJax>;
+  return <MathJax inline dynamic className="text-inherit leading-inherit font-inherit">{text}</MathJax>;
 };
 
 export default TypewriterHint;
