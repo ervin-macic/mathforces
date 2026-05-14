@@ -1,12 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { MathJax } from 'better-react-mathjax';
+import { MathJaxFitBlock } from './MathJaxFitBlock';
 
 interface TypewriterHintProps {
   text: string;
   onTypingComplete: () => void;
+  /** Same as solution block — skip fit layout while rating overlay is active. */
+  layoutPaused?: boolean;
 }
 
-const TypewriterHint: React.FC<TypewriterHintProps> = ({ text, onTypingComplete }) => {
+/** Match `PLAY_HINT_SOLUTION_MATH_BODY` in PlayPage.tsx */
+const HINT_MATH_BODY =
+  'text-sm leading-relaxed sm:leading-relaxed md:text-sm md:leading-loose lg:text-base lg:leading-loose xl:text-lg xl:leading-loose';
+
+const TypewriterHint: React.FC<TypewriterHintProps> = ({
+  text,
+  onTypingComplete,
+  layoutPaused = false,
+}) => {
   const [displayedText, setDisplayedText] = useState('');
   const isTyping = displayedText.length < text.length;
 
@@ -46,7 +56,15 @@ const TypewriterHint: React.FC<TypewriterHintProps> = ({ text, onTypingComplete 
     );
   }
 
-  return <MathJax inline dynamic className="text-inherit leading-inherit font-inherit">{text}</MathJax>;
+  return (
+    <MathJaxFitBlock
+      layoutPaused={layoutPaused}
+      className="min-w-0 w-full max-w-full overflow-x-hidden text-left"
+      contentClassName={`block w-full max-w-full min-w-0 align-top text-inherit font-mono ${HINT_MATH_BODY}`}
+    >
+      {text}
+    </MathJaxFitBlock>
+  );
 };
 
 export default TypewriterHint;

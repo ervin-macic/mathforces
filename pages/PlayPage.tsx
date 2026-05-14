@@ -459,12 +459,12 @@ const PlayPage: React.FC<PlayPageProps> = ({
         </div>
         <div className="flex min-h-0 min-w-0 w-full flex-col items-center justify-start px-4 pb-[max(6rem,env(safe-area-inset-bottom,0px))] pt-4 sm:px-8">
           <div className="w-full min-w-0 max-w-5xl text-center">
-            {/* Phones: smaller type + horizontal scroll for wide MathJax; sm+ unchanged visually */}
+            {/* Same inner layout as solution so column width for MathJax fit is the viewport slot (not content width). */}
             <MathJaxFitBlock
               key={`stmt-${currentProblem.id}`}
               layoutPaused={animationStage !== 'PROBLEM_VIEW'}
-              className="mb-8 w-full min-w-0 max-w-full overflow-x-hidden px-2 text-left sm:mb-10 sm:px-4"
-              contentClassName={`inline-block min-w-full align-top text-left text-light font-mono ${PLAY_STATEMENT_MATH_BODY}`}
+              className="mb-8 min-w-0 w-full max-w-full overflow-x-hidden px-2 text-left sm:mb-10 sm:px-4"
+              contentClassName={`block w-full max-w-full min-w-0 align-top text-left text-light font-mono ${PLAY_STATEMENT_MATH_BODY}`}
             >
               {currentProblem.statement}
             </MathJaxFitBlock>
@@ -501,6 +501,7 @@ const PlayPage: React.FC<PlayPageProps> = ({
                   <p className="font-bold text-accent/80 mb-1 text-xs sm:text-sm">Hint {index + 1}:</p>
                   <TypewriterHint
                     text={currentProblem.hints[index]}
+                    layoutPaused={animationStage !== 'PROBLEM_VIEW'}
                     onTypingComplete={() => {
                       if (index === hintLevel - 1) {
                         setIsHintTyping(false);
