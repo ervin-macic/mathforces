@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { SolvedProblem, Problem } from '../types';
 import Timer from '../components/Timer';
 import TypewriterHint from '../components/TypewriterHint';
@@ -22,6 +22,8 @@ interface PlayPageProps {
     onProblemSolved: (problem: SolvedProblem) => void;
     onSessionEnd: () => void;
     onSessionStart: () => void;
+    /** Practice start screen only (immersive route has no navbar). */
+    onBackToAbout?: () => void;
 }
 
 /** Cheap UUID v4-ish generator for session ids. */
@@ -30,6 +32,13 @@ function uuid(): string {
         return (crypto as Crypto).randomUUID();
     }
     return 'sess-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+/** Play mode requires a full hint ladder (DB columns hint1–hint3). */
+function problemHasAllHints(problem: Problem): boolean {
+  const hints = problem.hints;
+  if (!hints || hints.length < 3) return false;
+  return hints.slice(0, 3).every(h => typeof h === 'string' && h.trim() !== '');
 }
 
 /** Only http(s) URLs become anchors; plain-text refs stay non-interactive. */
@@ -81,7 +90,13 @@ const PlayPage: React.FC<PlayPageProps> = ({
   onProblemSolved,
   onSessionEnd,
   onSessionStart,
+  onBackToAbout,
 }) => {
+  const playableProblems = useMemo(
+    () => problems.filter(problemHasAllHints),
+    [problems],
+  );
+
   const [playView, setPlayView] = useState<PlayView>('START_SCREEN');
   const [currentProblemIndex, setCurrentProblemIndex] = useState(0);
   const [sessionSolvedProblems, setSessionSolvedProblems] = useState<SolvedProblem[]>([]);
@@ -99,7 +114,12 @@ const PlayPage: React.FC<PlayPageProps> = ({
 
   const hintsSectionRef = useRef<HTMLDivElement>(null);
 
-  const currentProblem = problems[currentProblemIndex];
+  const currentProblem = playableProblems[currentProblemIndex];
+
+  useEffect(() => {
+    if (playableProblems.length === 0) return;
+    setCurrentProblemIndex(i => Math.min(i, playableProblems.length - 1));
+  }, [playableProblems]);
 
   useEffect(() => {
     setRevealedAnswer(false);
@@ -112,15 +132,15 @@ const PlayPage: React.FC<PlayPageProps> = ({
       hintsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
     return () => cancelAnimationFrame(id);
-  }, [hintLevel, revealedAnswer, isHintTyping, playView]);
+  }, [hintLevel, revealedAnswer, playView]);
 
   const goToNextProblem = useCallback(() => {
     setCurrentProblemIndex(currentIndex => {
-      const currentProblem = problems[currentIndex];
+      const currentProblem = playableProblems[currentIndex];
       const allSolved = [...solvedProblems, ...sessionSolvedProblems];
 
       const nextIndex = selectNextProblem(
-        problems,
+        playableProblems,
         allSolved,
         sessionProblemIds,
         currentProblem?.id ?? null,
@@ -128,7 +148,7 @@ const PlayPage: React.FC<PlayPageProps> = ({
       );
 
       // Track the newly chosen problem in the session history
-      const nextProblem = problems[nextIndex];
+      const nextProblem = playableProblems[nextIndex];
       if (nextProblem) {
         setSessionProblemIds(prev => [...prev, nextProblem.id]);
       }
@@ -136,7 +156,7 @@ const PlayPage: React.FC<PlayPageProps> = ({
       return nextIndex;
     });
     setLastAction(null);
-  }, [problems, lastAction, solvedProblems, sessionSolvedProblems, sessionProblemIds]);
+  }, [playableProblems, lastAction, solvedProblems, sessionSolvedProblems, sessionProblemIds]);
 
   // Keep a stable ref to the latest goToNextProblem so the animation effect
   // doesn't need it as a dependency — prevents effect teardown from cancelling
@@ -168,9 +188,9 @@ const PlayPage: React.FC<PlayPageProps> = ({
   }, [animationStage]);
 
   const handleStartSession = () => {
-    if (problems.length === 0) return;
-    const randomIndex = randomIntExclusive(problems.length);
-    const startProblem = problems[randomIndex];
+    if (playableProblems.length === 0) return;
+    const randomIndex = randomIntExclusive(playableProblems.length);
+    const startProblem = playableProblems[randomIndex];
     setCurrentProblemIndex(randomIndex);
     setSessionSolvedProblems([]);
     setSessionProblemIds(startProblem ? [startProblem.id] : []);
@@ -211,7 +231,7 @@ const PlayPage: React.FC<PlayPageProps> = ({
   };
 
   const handleConfirmSolve = (rating: number) => {
-    const problem = problems[currentProblemIndex];
+    const problem = playableProblems[currentProblemIndex];
     const newSolvedProblem: SolvedProblem = {
       problem,
       timeSpent: currentTime,
@@ -240,7 +260,7 @@ const PlayPage: React.FC<PlayPageProps> = ({
 
   const handleSkipProblem = () => {
     // Record the skip so it contributes to the knowledge profile
-    const problem = problems[currentProblemIndex];
+    const problem = playableProblems[currentProblemIndex];
     const skippedEntry: SolvedProblem = {
       problem,
       timeSpent: currentTime,
@@ -298,10 +318,19 @@ const PlayPage: React.FC<PlayPageProps> = ({
   const { problemClasses, ratingClasses } = getAnimationClasses();
 
   if (playView === 'START_SCREEN') {
-    const canStart = !problemsLoading && problems.length > 0;
+    const canStart = !problemsLoading && playableProblems.length > 0;
     return (
-      <div className="flex items-center justify-center min-h-screen px-4">
+      <div className="flex min-h-dvh items-center justify-center px-4 py-12">
         <div className="w-full max-w-lg">
+          {onBackToAbout && (
+            <button
+              type="button"
+              onClick={onBackToAbout}
+              className="mb-6 w-full text-left text-light-secondary hover:text-accent transition-colors sm:mb-8"
+            >
+              &larr; Back to About
+            </button>
+          )}
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold text-light mb-2 tracking-tight">Practice</h1>
             <p className="text-light/60">One problem at a time, adapted to you.</p>
@@ -329,6 +358,12 @@ const PlayPage: React.FC<PlayPageProps> = ({
               No problems loaded. Start the API and set{' '}
               <code className="text-accent font-mono">VITE_API_URL</code> in{' '}
               <code className="text-accent font-mono">.env.local</code>.
+            </p>
+          )}
+          {!problemsLoading && problems.length > 0 && playableProblems.length === 0 && (
+            <p className="text-center text-light-secondary text-sm mb-5 leading-relaxed">
+              No problems with a full set of hints are available yet. Add hints in the database
+              to start a session.
             </p>
           )}
 
@@ -388,19 +423,24 @@ const PlayPage: React.FC<PlayPageProps> = ({
   }
 
   return (
-    <div className="relative h-screen overflow-hidden">
-      <button onClick={handleEndSession}
-              className="absolute top-8 left-8 text-light-secondary hover:text-accent transition-colors z-20">
-        &larr; End Session
-      </button>
+    <div className="relative min-h-0 h-dvh max-h-dvh overflow-hidden">
       {/* Problem View */}
       <div className={`${problemClasses} min-h-0 overflow-y-auto overscroll-y-contain`}>
-        <div className="flex min-h-0 w-full flex-col items-center justify-start px-8 pb-[max(6rem,env(safe-area-inset-bottom,0px))] pt-24 md:pt-8">
+        <div
+          className="sticky top-0 z-30 flex w-full shrink-0 items-center justify-between gap-4 border-b border-secondary/40 bg-primary/95 px-4 pb-3 backdrop-blur-sm pt-[max(0.75rem,env(safe-area-inset-top,0px))] sm:px-8"
+        >
+          <button
+            type="button"
+            onClick={handleEndSession}
+            className="shrink-0 text-left text-sm text-light-secondary hover:text-accent transition-colors sm:text-base"
+          >
+            &larr; End Session
+          </button>
+          <Timer key={currentProblemIndex} onTimeUpdate={setCurrentTime} />
+        </div>
+        <div className="flex min-h-0 w-full flex-col items-center justify-start px-4 pb-[max(6rem,env(safe-area-inset-bottom,0px))] pt-4 sm:px-8">
           <div className="w-full max-w-5xl text-center">
-            <div className="flex justify-end items-center mb-10 px-4">
-              <Timer key={currentProblemIndex} onTimeUpdate={setCurrentTime} />
-            </div>
-            <div className="text-left text-2xl text-light leading-relaxed mb-12 px-4 font-mono">
+            <div className="text-left text-base text-light leading-snug sm:text-lg sm:leading-relaxed md:text-xl lg:text-2xl mb-8 px-2 font-mono md:mb-10 md:px-4">
               <MathJax dynamic>{currentProblem.statement}</MathJax>
             </div>
             <div className="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-6">
@@ -417,7 +457,10 @@ const PlayPage: React.FC<PlayPageProps> = ({
                 Mark as Solved
               </button>
             </div>
-            <div ref={hintsSectionRef} className="mt-8 w-full max-w-4xl mx-auto text-left px-4">
+            <div
+              ref={hintsSectionRef}
+              className="mt-8 w-full max-w-4xl mx-auto scroll-mt-28 text-left px-2 sm:px-4 md:scroll-mt-32"
+            >
               {Array.from({ length: hintLevel }).map((_, index) => (
                 <div key={index} className="bg-secondary/50 p-4 rounded-lg mb-3 text-light/90">
                   <p className="font-bold text-accent/80 mb-1">Hint {index + 1}:</p>
@@ -442,14 +485,14 @@ const PlayPage: React.FC<PlayPageProps> = ({
                       Show solution & source
                     </button>
                   ) : (
-                    <div className="bg-secondary/50 p-4 rounded-lg space-y-4 text-light/90">
+                    <div className="min-w-0 max-w-full bg-secondary/50 p-4 rounded-lg space-y-4 text-light/90">
                       {(currentProblem.source_ref || currentProblem.source_tag) && (
                         <SourceAttribution problem={currentProblem} />
                       )}
                       <div>
                         <p className="font-bold text-accent/80 mb-2">Solution</p>
                         {currentProblem.solution ? (
-                          <div className="text-lg text-light leading-relaxed font-mono">
+                          <div className="min-w-0 max-w-full overflow-x-auto text-lg text-light leading-relaxed font-mono [scrollbar-gutter:stable]">
                             <MathJax dynamic>{currentProblem.solution}</MathJax>
                           </div>
                         ) : (
@@ -472,33 +515,68 @@ const PlayPage: React.FC<PlayPageProps> = ({
           <div className="bg-secondary p-8 rounded-lg shadow-2xl w-full max-w-lg mx-4 text-center">
             <h2 className="text-2xl font-bold mb-4 text-accent">Problem Solved!</h2>
             <p className="mb-6 text-light/80">Rate the difficulty of this problem.</p>
-            <div
-              className="flex justify-center space-x-1 sm:space-x-2 mb-8 flex-wrap"
-              onMouseLeave={() => setHoverRating(null)}
-            >
-              {[...Array(10)].map((_, i) => {
-                const ratingValue = i + 1;
-                return (
-                  <button
-                    key={ratingValue}
-                    onClick={() => {
-                      setSelectedRating(ratingValue);
-                      setTimeout(() => handleConfirmSolve(ratingValue), 150);
-                    }}
-                    onMouseEnter={() => setHoverRating(ratingValue)}
-                    className="group focus:outline-none"
-                    aria-label={`Rate ${ratingValue} out of 10`}
-                  >
-                    <svg className={`w-8 h-8 transition-colors ${
-                      ratingValue <= (hoverRating || selectedRating || 0)
-                        ? 'text-accent'
-                        : 'text-light-secondary'
-                    }`} fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.959a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.368 2.448a1 1 0 00-.364 1.118l1.287 3.959c.3.921-.755 1.688-1.54 1.118l-3.368-2.448a1 1 0 00-1.176 0l-3.368 2.448c-.784.57-1.838-.197-1.539-1.118l1.287-3.959a1 1 0 00-.364-1.118L2.05 9.386c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69L9.049 2.927z" />
-                    </svg>
-                  </button>
-                );
-              })}
+            <div className="mb-8" onMouseLeave={() => setHoverRating(null)}>
+              {/* Five stars on narrow viewports; each maps to 2,4,…,10 on the same 1–10 scale */}
+              <div className="flex justify-center gap-2 sm:hidden">
+                {[...Array(5)].map((_, i) => {
+                  const ratingValue = (i + 1) * 2;
+                  return (
+                    <button
+                      key={ratingValue}
+                      type="button"
+                      onClick={() => {
+                        setSelectedRating(ratingValue);
+                        setTimeout(() => handleConfirmSolve(ratingValue), 150);
+                      }}
+                      onMouseEnter={() => setHoverRating(ratingValue)}
+                      className="group focus:outline-none"
+                      aria-label={`Rate ${ratingValue} out of 10`}
+                    >
+                      <svg
+                        className={`h-8 w-8 transition-colors ${
+                          ratingValue <= (hoverRating || selectedRating || 0)
+                            ? 'text-accent'
+                            : 'text-light-secondary'
+                        }`}
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.959a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.368 2.448a1 1 0 00-.364 1.118l1.287 3.959c.3.921-.755 1.688-1.54 1.118l-3.368-2.448a1 1 0 00-1.176 0l-3.368 2.448c-.784.57-1.838-.197-1.539-1.118l1.287-3.959a1 1 0 00-.364-1.118L2.05 9.386c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69L9.049 2.927z" />
+                      </svg>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="hidden justify-center gap-2 sm:flex">
+                {[...Array(10)].map((_, i) => {
+                  const ratingValue = i + 1;
+                  return (
+                    <button
+                      key={ratingValue}
+                      type="button"
+                      onClick={() => {
+                        setSelectedRating(ratingValue);
+                        setTimeout(() => handleConfirmSolve(ratingValue), 150);
+                      }}
+                      onMouseEnter={() => setHoverRating(ratingValue)}
+                      className="group focus:outline-none"
+                      aria-label={`Rate ${ratingValue} out of 10`}
+                    >
+                      <svg
+                        className={`h-8 w-8 transition-colors ${
+                          ratingValue <= (hoverRating || selectedRating || 0)
+                            ? 'text-accent'
+                            : 'text-light-secondary'
+                        }`}
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.959a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.368 2.448a1 1 0 00-.364 1.118l1.287 3.959c.3.921-.755 1.688-1.54 1.118l-3.368-2.448a1 1 0 00-1.176 0l-3.368 2.448c-.784.57-1.838-.197-1.539-1.118l1.287-3.959a1 1 0 00-.364-1.118L2.05 9.386c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69L9.049 2.927z" />
+                      </svg>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
             <p className="text-sm text-light-secondary">Select a star to continue to the next problem.</p>
           </div>

@@ -44,7 +44,7 @@ const CountdownTimer: React.FC<{ seconds: number }> = ({ seconds }) => {
         const secs = (totalSeconds % 60).toString().padStart(2, '0');
         return `${hours}:${minutes}:${secs}`;
     };
-    return <div className="text-3xl font-bold text-accent font-mono tracking-wider">{formatTime(seconds)}</div>;
+    return <div className="shrink-0 text-2xl font-bold text-accent font-mono tracking-wider sm:text-3xl">{formatTime(seconds)}</div>;
 };
 
 const CompetitionPage: React.FC<CompetitionPageProps> = ({
@@ -62,6 +62,11 @@ const CompetitionPage: React.FC<CompetitionPageProps> = ({
     const [ratings, setRatings] = useState<Ratings>({});
     const [isTimerRunning, setIsTimerRunning] = useState(false);
     const [sessionId, setSessionId] = useState<string>(() => uuid());
+    const [solutionOpen, setSolutionOpen] = useState<[boolean, boolean, boolean]>([
+        false,
+        false,
+        false,
+    ]);
 
     useEffect(() => {
         if (!isTimerRunning) return;
@@ -91,6 +96,7 @@ const CompetitionPage: React.FC<CompetitionPageProps> = ({
         setTimeLeft(COMPETITION_DURATION);
         setSolvedMask([false, false, false]);
         setRatings({});
+        setSolutionOpen([false, false, false]);
         setIsTimerRunning(true);
     }, [problems]);
 
@@ -125,6 +131,14 @@ const CompetitionPage: React.FC<CompetitionPageProps> = ({
         const newMask = [...solvedMask];
         newMask[index] = !newMask[index];
         setSolvedMask(newMask);
+    };
+
+    const toggleSolutionPanel = (index: number) => {
+        setSolutionOpen(prev => {
+            const next: [boolean, boolean, boolean] = [...prev] as [boolean, boolean, boolean];
+            next[index] = !next[index];
+            return next;
+        });
     };
 
     const handleMarkAsDone = () => {
@@ -211,7 +225,7 @@ const CompetitionPage: React.FC<CompetitionPageProps> = ({
         const canStart =
             !problemsLoading && problems.length >= 3 && competitionFeasible;
         return (
-             <div className="flex items-center justify-center min-h-screen">
+             <div className="flex min-h-dvh items-center justify-center">
               <div className="text-center p-8">
                   <h1 className="text-5xl font-bold mb-4">Competition Mode</h1>
                   <p className="text-xl text-light/80 mb-8">You'll have 4.5 hours to solve 3 problems.</p>
@@ -249,16 +263,24 @@ const CompetitionPage: React.FC<CompetitionPageProps> = ({
     }
     
     return (
-        <div className="relative h-screen overflow-hidden">
-            <div className={activeClasses}>
-                <div className="min-h-screen h-screen flex flex-col p-4 sm:p-8">
-                    <header className="flex justify-between items-center mb-6 px-4">
-                        <button onClick={onSessionEnd} className="text-light-secondary hover:text-accent transition-colors">&larr; End Session</button>
-                        <CountdownTimer seconds={timeLeft} />
-                    </header>
-                    <main className="flex-grow grid grid-cols-1 gap-6 overflow-y-auto pb-4 max-w-5xl mx-auto w-full px-4">
+        <div className="relative min-h-0 h-dvh max-h-dvh overflow-hidden">
+            <div className={`${activeClasses} min-h-0 overflow-y-auto overscroll-y-contain`}>
+                <div
+                    className="sticky top-0 z-30 flex w-full shrink-0 items-center justify-between gap-4 border-b border-secondary/40 bg-primary/95 px-4 pb-3 backdrop-blur-sm pt-[max(0.75rem,env(safe-area-inset-top,0px))] sm:px-8"
+                >
+                    <button
+                        type="button"
+                        onClick={onSessionEnd}
+                        className="shrink-0 text-left text-sm text-light-secondary hover:text-accent transition-colors sm:text-base"
+                    >
+                        &larr; End Session
+                    </button>
+                    <CountdownTimer seconds={timeLeft} />
+                </div>
+                <div className="mx-auto flex w-full min-w-0 max-w-5xl flex-col px-4 pb-[max(6rem,env(safe-area-inset-bottom,0px))] sm:px-8">
+                    <main className="grid w-full min-w-0 grid-cols-1 gap-6 py-4">
                         {competitionProblems.map((problem, index) => (
-                             <div key={problem.id} className="flex items-start gap-4 sm:gap-6">
+                             <div key={problem.id} className="flex min-w-0 items-start gap-4 sm:gap-6">
                                 <input
                                     type="checkbox"
                                     id={`problem-${problem.id}`}
@@ -267,13 +289,38 @@ const CompetitionPage: React.FC<CompetitionPageProps> = ({
                                     className="h-6 w-6 mt-2 flex-shrink-0 rounded bg-primary border-light-secondary text-accent focus:ring-accent cursor-pointer"
                                     aria-label={`Mark problem ${index + 1} as solved`}
                                 />
-                                <div className="bg-secondary p-6 rounded-lg shadow-lg flex-grow text-lg">
-                                    <MathJax dynamic>{problem.statement}</MathJax>
+                                <div className="min-w-0 flex-1 space-y-3 bg-secondary p-6 rounded-lg shadow-lg text-lg">
+                                    <p className="text-sm font-semibold text-accent/90">Problem {index + 1}</p>
+                                    <div className="min-w-0 max-w-full overflow-x-auto text-light [scrollbar-gutter:stable]">
+                                        <MathJax dynamic>{problem.statement}</MathJax>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => toggleSolutionPanel(index)}
+                                        className="w-full rounded-lg border border-accent/40 bg-accent/15 px-4 py-2.5 text-sm font-semibold text-accent hover:bg-accent/25 transition-colors sm:w-auto"
+                                    >
+                                        {solutionOpen[index]
+                                            ? `Hide solution (problem ${index + 1})`
+                                            : `View solution (problem ${index + 1})`}
+                                    </button>
+                                    {solutionOpen[index] && (
+                                        <div className="border-t border-secondary pt-3">
+                                            {problem.solution?.trim() ? (
+                                                <div className="min-w-0 max-w-full overflow-x-auto text-base text-light/95 leading-relaxed font-mono [scrollbar-gutter:stable]">
+                                                    <MathJax dynamic>{problem.solution}</MathJax>
+                                                </div>
+                                            ) : (
+                                                <p className="text-sm text-light-secondary">
+                                                    No written solution in the dataset for this problem.
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         ))}
                     </main>
-                    <footer className="mt-auto pt-6 flex flex-col sm:flex-row justify-center items-center gap-4">
+                    <footer className="flex shrink-0 flex-col items-center justify-center gap-4 border-t border-secondary/30 pt-6 sm:flex-row">
                         <button onClick={handleGenerateNew} className="w-full sm:w-auto bg-secondary text-light px-8 py-3 rounded-lg hover:bg-accent hover:text-primary transition-all font-semibold text-lg shadow-md hover:shadow-lg">Generate New Competition</button>
                         <button onClick={handleMarkAsDone} className="w-full sm:w-auto bg-accent text-primary font-bold px-8 py-3 rounded-lg hover:opacity-90 transition-all text-lg shadow-md hover:shadow-lg">Mark as Done</button>
                     </footer>
@@ -281,7 +328,7 @@ const CompetitionPage: React.FC<CompetitionPageProps> = ({
             </div>
 
             <div className={ratingClasses}>
-                <div className="flex flex-col items-center justify-center min-h-screen p-8">
+                <div className="flex flex-col items-center justify-center min-h-dvh p-8">
                     <div className="bg-secondary p-8 rounded-lg shadow-2xl w-full max-w-3xl mx-4 text-center">
                         <h2 className="text-3xl font-bold mb-4 text-accent">Competition Complete!</h2>
                         <p className="mb-8 text-light/80">Rate the difficulty of the problems you solved.</p>

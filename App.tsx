@@ -164,13 +164,17 @@ function App() {
           />
         );
       case Page.SessionSettings:
-        return <SessionSettingsPage onModeSelect={(mode) => {
-          if (mode === 'endless') {
-            setActivePage(Page.Play);
-          } else if (mode === 'competition') {
-            setActivePage(Page.Competition);
-          }
-        }} />;
+        return (
+          <SessionSettingsPage
+            onModeSelect={(mode) => {
+              if (mode === 'endless') {
+                setActivePage(Page.Play);
+              } else if (mode === 'competition') {
+                setActivePage(Page.Competition);
+              }
+            }}
+          />
+        );
       case Page.Leaderboard:
         return <LeaderboardPage />;
       case Page.Terms:
@@ -198,6 +202,7 @@ function App() {
             userId={user?.userId ?? null}
             onProblemSolved={handleAddSolvedProblem}
             onSessionStart={() => setIsSessionActive(true)}
+            onBackToAbout={() => setActivePage(Page.About)}
             onSessionEnd={() => {
                 setIsSessionActive(false);
                 setActivePage(Page.SessionSettings);

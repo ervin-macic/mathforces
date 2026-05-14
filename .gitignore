@@ -25,6 +25,8 @@ dist-ssr
 *.sw?
 
 .hf_cache/
+.hf_import_cache/
+.venv-data/
 .venv/
 *.db
 *.db-shm
