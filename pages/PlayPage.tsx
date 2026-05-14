@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { SolvedProblem, Problem } from '../types';
 import Timer from '../components/Timer';
 import TypewriterHint from '../components/TypewriterHint';
-import { MathJax } from 'better-react-mathjax';
+import { MathJaxFitBlock } from '../components/MathJaxFitBlock';
 import { selectNextProblem } from '../lib/recommendationEngine';
 import { randomIntExclusive } from '../lib/random';
 import { postAttempt } from '../lib/apiClient';
@@ -27,11 +27,16 @@ interface PlayPageProps {
 }
 
 /**
- * Shared math body scale for statement, hints, and solution: readable on phones,
- * held at `text-base` through tablet (`md`), then steps up on large screens.
+ * Problem statement math + prose — largest body scale in play view.
  */
-const PLAY_MATH_BODY =
-  'text-base leading-snug sm:leading-relaxed md:text-base md:leading-relaxed lg:text-xl lg:leading-relaxed xl:text-2xl';
+const PLAY_STATEMENT_MATH_BODY =
+  'text-base leading-snug sm:leading-relaxed md:text-lg md:leading-relaxed lg:text-xl lg:leading-relaxed xl:text-2xl';
+
+/**
+ * Hints and solution: same size at every breakpoint, always smaller than the statement.
+ */
+const PLAY_HINT_SOLUTION_MATH_BODY =
+  'text-sm leading-relaxed sm:leading-relaxed md:text-sm md:leading-loose lg:text-base lg:leading-loose xl:text-lg xl:leading-loose';
 
 /** Cheap UUID v4-ish generator for session ids. */
 function uuid(): string {
@@ -218,7 +223,11 @@ const PlayPage: React.FC<PlayPageProps> = ({
   };
 
   const handleSolveProblem = () => {
-    if (typeof confetti === 'function') {
+    const allowConfetti =
+      typeof window !== 'undefined' &&
+      typeof confetti === 'function' &&
+      window.matchMedia('(min-width: 640px)').matches;
+    if (allowConfetti) {
       confetti({
         particleCount: 150,
         spread: 120,
@@ -454,13 +463,14 @@ const PlayPage: React.FC<PlayPageProps> = ({
         <div className="flex min-h-0 min-w-0 w-full flex-col items-center justify-start px-4 pb-[max(6rem,env(safe-area-inset-bottom,0px))] pt-4 sm:px-8">
           <div className="w-full min-w-0 max-w-5xl text-center">
             {/* Phones: smaller type + horizontal scroll for wide MathJax; sm+ unchanged visually */}
-            <div className="mb-8 w-full min-w-0 max-w-full overflow-x-auto overscroll-x-contain px-2 text-left [scrollbar-gutter:stable] sm:mb-10 sm:overflow-x-visible sm:px-4">
-              <div
-                className={`inline-block min-w-full text-left text-light font-mono ${PLAY_MATH_BODY}`}
-              >
-                <MathJax dynamic>{currentProblem.statement}</MathJax>
-              </div>
-            </div>
+            <MathJaxFitBlock
+              key={`stmt-${currentProblem.id}`}
+              layoutPaused={animationStage !== 'PROBLEM_VIEW'}
+              className="mb-8 w-full min-w-0 max-w-full overflow-x-hidden px-2 text-left sm:mb-10 sm:px-4"
+              contentClassName={`inline-block min-w-full align-top text-left text-light font-mono ${PLAY_STATEMENT_MATH_BODY}`}
+            >
+              {currentProblem.statement}
+            </MathJaxFitBlock>
             <div className="flex flex-col sm:flex-row justify-center items-center space-y-3 sm:space-y-0 sm:space-x-6">
               <button
                 onClick={handleSkipProblem}
@@ -489,9 +499,9 @@ const PlayPage: React.FC<PlayPageProps> = ({
               {Array.from({ length: hintLevel }).map((_, index) => (
                 <div
                   key={index}
-                  className={`bg-secondary/50 p-4 rounded-lg mb-3 text-light/90 font-mono ${PLAY_MATH_BODY}`}
+                  className={`bg-secondary/50 p-4 rounded-lg mb-3 text-light/90 font-mono ${PLAY_HINT_SOLUTION_MATH_BODY}`}
                 >
-                  <p className="font-bold text-accent/80 mb-1 text-sm sm:text-base">Hint {index + 1}:</p>
+                  <p className="font-bold text-accent/80 mb-1 text-xs sm:text-sm">Hint {index + 1}:</p>
                   <TypewriterHint
                     text={currentProblem.hints[index]}
                     onTypingComplete={() => {
@@ -520,13 +530,14 @@ const PlayPage: React.FC<PlayPageProps> = ({
                       <div>
                         <p className="font-bold text-accent/80 mb-2">Solution</p>
                         {currentProblem.solution ? (
-                          <div className="min-w-0 max-w-full overflow-x-auto overscroll-x-contain text-left [scrollbar-gutter:stable] sm:overflow-x-visible">
-                            <div
-                              className={`inline-block min-w-full text-light font-mono ${PLAY_MATH_BODY}`}
-                            >
-                              <MathJax dynamic>{currentProblem.solution}</MathJax>
-                            </div>
-                          </div>
+                          <MathJaxFitBlock
+                            key={`sol-${currentProblem.id}`}
+                            layoutPaused={animationStage !== 'PROBLEM_VIEW'}
+                            className="min-w-0 w-full max-w-full overflow-x-hidden text-left"
+                            contentClassName={`block w-full max-w-full min-w-0 align-top text-light font-mono ${PLAY_HINT_SOLUTION_MATH_BODY}`}
+                          >
+                            {currentProblem.solution}
+                          </MathJaxFitBlock>
                         ) : (
                           <p className="text-sm text-light-secondary">
                             No written solution in the dataset for this problem.
