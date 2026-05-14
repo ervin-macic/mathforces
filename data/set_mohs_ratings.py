@@ -5,7 +5,6 @@ Recompute `mohs` for all problems in server/data/mathforces.db.
 MOHS is stored in steps of 5 in [0, 60] (per user request: 0 ≈ below IMO level,
 60 ≈ beyond typical IMO).
 
-- Problems 1–17: hand-judged (seed problems have no official solution text in DB).
 - Identified past IMO exam problems: values from data/imo_mohs.csv.
 - IMO shortlist imports: quantiles of official solution length within each shortlist
   cohort (MathNet ordering); explicit IMO overrides win when present.

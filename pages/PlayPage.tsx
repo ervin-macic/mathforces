@@ -22,6 +22,8 @@ interface PlayPageProps {
     onProblemSolved: (problem: SolvedProblem) => void;
     onSessionEnd: () => void;
     onSessionStart: () => void;
+    /** Practice start screen only (immersive route has no navbar). */
+    onBackToAbout?: () => void;
 }
 
 /** Cheap UUID v4-ish generator for session ids. */
@@ -81,6 +83,7 @@ const PlayPage: React.FC<PlayPageProps> = ({
   onProblemSolved,
   onSessionEnd,
   onSessionStart,
+  onBackToAbout,
 }) => {
   const [playView, setPlayView] = useState<PlayView>('START_SCREEN');
   const [currentProblemIndex, setCurrentProblemIndex] = useState(0);
@@ -300,8 +303,17 @@ const PlayPage: React.FC<PlayPageProps> = ({
   if (playView === 'START_SCREEN') {
     const canStart = !problemsLoading && problems.length > 0;
     return (
-      <div className="flex items-center justify-center min-h-screen px-4">
+      <div className="flex min-h-dvh items-center justify-center px-4 py-12">
         <div className="w-full max-w-lg">
+          {onBackToAbout && (
+            <button
+              type="button"
+              onClick={onBackToAbout}
+              className="mb-6 w-full text-left text-light-secondary hover:text-accent transition-colors sm:mb-8"
+            >
+              &larr; Back to About
+            </button>
+          )}
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold text-light mb-2 tracking-tight">Practice</h1>
             <p className="text-light/60">One problem at a time, adapted to you.</p>
@@ -450,14 +462,14 @@ const PlayPage: React.FC<PlayPageProps> = ({
                       Show solution & source
                     </button>
                   ) : (
-                    <div className="bg-secondary/50 p-4 rounded-lg space-y-4 text-light/90">
+                    <div className="min-w-0 max-w-full bg-secondary/50 p-4 rounded-lg space-y-4 text-light/90">
                       {(currentProblem.source_ref || currentProblem.source_tag) && (
                         <SourceAttribution problem={currentProblem} />
                       )}
                       <div>
                         <p className="font-bold text-accent/80 mb-2">Solution</p>
                         {currentProblem.solution ? (
-                          <div className="text-lg text-light leading-relaxed font-mono">
+                          <div className="min-w-0 max-w-full overflow-x-auto text-lg text-light leading-relaxed font-mono [scrollbar-gutter:stable]">
                             <MathJax dynamic>{currentProblem.solution}</MathJax>
                           </div>
                         ) : (
