@@ -183,6 +183,12 @@ export function MathJaxFitBlock({
         slot.style.removeProperty('overscroll-behavior-x');
         slot.style.removeProperty('padding-top');
         slot.style.removeProperty('padding-bottom');
+        // CSS transform does not reduce layout size; `scaledH` alone can be shorter than the slot's
+        // scrollable overflow — fixed height + overflow:hidden then clips rows.
+        void slot.offsetHeight;
+        const layoutNeedH = Math.ceil(Math.max(scaledH, slot.scrollHeight));
+        slot.style.height = `${layoutNeedH}px`;
+        slot.style.minHeight = `${layoutNeedH}px`;
       }
     }
   }, [layoutPaused]);
