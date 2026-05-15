@@ -27,49 +27,44 @@
     }
   </script>
   <style>
-    /* Tailwind preflight sets svg { display: block } — that breaks inline MathJax SVGs.
-      Make MathJax SVGs inline and vertically aligned. */
-    mjx-container svg,
-    .MathJax svg,
-    svg[data-mathml]
-
-    /* fallback selector if any */
-      {
+    /* MathJax CommonHTML — inline math stays in the text line */
+    mjx-container[jax="CHTML"]:not([display="true"]):not([display="block"]) {
       display: inline !important;
-      vertical-align: -0.125em;
-      height: 1em;
-      /* keep math the same line-height as text */
+      vertical-align: -0.14em;
     }
 
-    /* Keep display-mode MathJax containers block as intended */
-    mjx-container[display="block"],
-    .mathjax-display {
-      display: block !important;
-    }
-
-    /* target MathJax SVG output specifically and force inline behavior */
-    mjx-container[jax="SVG"],
-    mjx-container[jax="SVG"] svg {
-      display: inline !important;
-      vertical-align: -0.12em !important;
-      /* tweak this to taste */
-      margin: 0 !important;
-      padding: 0 !important;
-      height: 1em !important;
-      width: auto !important;
-    }
-
-    /* wrapper inline behavior */
-    mjx-container[jax="SVG"] {
-      display: inline-flex !important;
-      align-items: center !important;
-      line-height: 1 !important;
-    }
-
+    /* Display equations: centered (matches MathJax chtml.displayAlign); inline unchanged above */
+    mjx-container[jax="CHTML"][display="true"],
+    mjx-container[jax="CHTML"][display="block"],
     mjx-container[display="block"] {
       display: block !important;
-      margin: 0.75em 0 !important;
-      text-align: center;
+      margin: 0.65em auto !important;
+      text-align: center !important;
+    }
+
+    /* Horizontal scroll slots — no vertical gutter/track beside horizontal scrollbar */
+    .mathjax-scroll-x {
+      overflow-y: hidden !important;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(226, 183, 19, 0.55) rgba(45, 46, 50, 0.95);
+    }
+
+    .mathjax-scroll-x::-webkit-scrollbar {
+      height: 7px;
+    }
+
+    .mathjax-scroll-x::-webkit-scrollbar-track {
+      background: rgba(45, 46, 50, 0.9);
+      border-radius: 4px;
+    }
+
+    .mathjax-scroll-x::-webkit-scrollbar-thumb {
+      background: rgba(226, 183, 19, 0.42);
+      border-radius: 4px;
+    }
+
+    .mathjax-scroll-x::-webkit-scrollbar-thumb:hover {
+      background: rgba(226, 183, 19, 0.62);
     }
   </style>
 

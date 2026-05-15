@@ -106,10 +106,10 @@ export function MathJaxFitBlock({
       mjx.style.removeProperty('transform-origin');
       const slot = mjx.parentElement;
       if (slot?.getAttribute(SLOT_ATTR) === 'true') {
+        slot.classList.remove('mathjax-scroll-x');
         slot.style.removeProperty('min-height');
         slot.style.removeProperty('overflow-x');
         slot.style.removeProperty('overscroll-behavior-x');
-        slot.style.removeProperty('scrollbar-gutter');
         slot.style.removeProperty('width');
         slot.style.removeProperty('max-width');
         slot.style.removeProperty('box-sizing');
@@ -143,9 +143,10 @@ export function MathJaxFitBlock({
       mjx.style.transformOrigin = 'top left';
       slot.style.minHeight = `${naturalH * scale}px`;
       if (needsScroll) {
+        slot.classList.add('mathjax-scroll-x');
         slot.style.overflowX = 'auto';
+        slot.style.overflowY = 'hidden';
         slot.style.overscrollBehaviorX = 'contain';
-        slot.style.setProperty('scrollbar-gutter', 'stable');
         slot.style.maxWidth = '100%';
         slot.style.paddingTop = SCROLL_SLOT_PAD_Y;
         slot.style.paddingBottom = SCROLL_SLOT_PAD_Y;
@@ -154,9 +155,10 @@ export function MathJaxFitBlock({
           slot.style.boxSizing = 'border-box';
         }
       } else {
+        slot.classList.remove('mathjax-scroll-x');
         slot.style.overflowX = 'hidden';
+        slot.style.removeProperty('overflow-y');
         slot.style.removeProperty('overscroll-behavior-x');
-        slot.style.removeProperty('scrollbar-gutter');
         slot.style.removeProperty('padding-top');
         slot.style.removeProperty('padding-bottom');
       }

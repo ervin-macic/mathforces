@@ -560,7 +560,16 @@ const PlayPage: React.FC<PlayPageProps> = ({
               active={animationStage === 'RATING_VIEW'}
               onChooseRating={handleConfirmSolve}
             />
-            <p className="text-sm text-light-secondary">Select a star to continue to the next problem.</p>
+            <button
+              type="button"
+              onClick={() => handleConfirmSolve(0)}
+              className="mx-auto mt-4 flex w-full max-w-[min(100%,20rem)] items-center justify-center rounded-xl border border-secondary/90 bg-primary/50 px-4 py-2.5 text-sm font-medium text-light-secondary transition-colors hover:border-accent/45 hover:text-accent sm:mt-5 sm:max-w-sm sm:py-3 sm:text-base md:text-base"
+            >
+              Skip rating
+            </button>
+            <p className="mx-auto mt-3 max-w-md px-2 text-center text-xs leading-relaxed text-light-secondary sm:mt-4 sm:text-sm md:text-[0.9375rem]">
+              Tap a star to continue, or skip — skipping won&apos;t update difficulty calibration from your rating.
+            </p>
           </div>
         </div>
       </div>

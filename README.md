@@ -63,3 +63,12 @@ Visible when logged in. Topic breakdown, recent solves, timing, and perceived di
 - `data/` — Python helpers for imports and hint generation
 
 ---
+
+## Production frontend (SPA routing)
+
+The app uses **React Router** with normal paths such as `/play` and `/session`. The static server must **fall back to `index.html`** for unknown routes so refreshes and deep links work.
+
+- **Local:** `npm run build` then `npm start` runs [`serve`](https://github.com/vercel/serve) with `-s` (single-page app mode).
+- **Railway:** Set the frontend service **Start Command** to `npm start` (after `npm run build`), or use another static host configured with SPA fallback. Ensure `PORT` is honored if your platform injects it.
+
+---

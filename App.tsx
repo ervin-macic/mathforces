@@ -1,6 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  Routes,
+  Route,
+  Outlet,
+  useNavigate,
+  useLocation,
+  Navigate,
+} from 'react-router-dom';
 import { Page, SolvedProblem, Problem } from './types';
 import { MathJaxContext } from 'better-react-mathjax';
+import { pathForPage, pageFromPath } from './lib/pagePaths';
 import { computeUpdatedMohs, shouldUpdateMohs } from './lib/mohsService';
 import {
   fetchProblems,
@@ -25,26 +34,98 @@ import PlayPage from './pages/PlayPage';
 import SessionSettingsPage from './pages/SessionSettingsPage';
 import CompetitionPage from './pages/CompetitionPage';
 import TermsPage from './pages/TermsPage';
+import { ScrollToTop } from './components/ScrollToTop';
 
 const mathJaxConfig = {
-  loader: { load: ['input/tex', 'output/svg'] },
+  loader: { load: ['input/tex', 'output/chtml'] },
   tex: {
     inlineMath: [['$', '$']],
     processEscapes: true,
   },
-  svg: {
-    fontCache: 'global'
-  }
+  chtml: {
+    displayAlign: 'center',
+    scale: 1,
+    linebreaks: {
+      automatic: true,
+      width: 'container',
+    },
+  },
 };
 
+interface MainShellProps {
+  user: AuthUser | null;
+  onNavigateFromChrome: (page: Page) => void;
+  onLoginClick: () => void;
+  onLogoutClick: () => void;
+}
+
+function MainShell({
+  user,
+  onNavigateFromChrome,
+  onLoginClick,
+  onLogoutClick,
+}: MainShellProps) {
+  const activePage = pageFromPath(useLocation().pathname);
+
+  const appStyle: React.CSSProperties = useMemo(() => {
+    if (activePage === Page.SessionSettings) {
+      return {
+        backgroundImage: `
+      radial-gradient(ellipse 80% 100% at 90% 10%, rgba(226, 183, 19, 0.15), transparent 70%),
+      radial-gradient(ellipse 80% 100% at 10% 90%, rgba(226, 183, 19, 0.08), transparent 70%)
+    `,
+        backgroundRepeat: 'no-repeat',
+      };
+    }
+    if (
+      activePage === Page.About ||
+      activePage === Page.Leaderboard ||
+      activePage === Page.Terms
+    ) {
+      return {
+        backgroundImage: `
+      radial-gradient(ellipse 80% 100% at 90% 10%, rgba(226, 183, 19, 0.10), transparent 70%),
+      radial-gradient(ellipse 80% 100% at 10% 90%, rgba(226, 183, 19, 0.05), transparent 70%)
+    `,
+        backgroundRepeat: 'no-repeat',
+      };
+    }
+    return {};
+  }, [activePage]);
+
+  const needsContainer = activePage === Page.Progress;
+
+  return (
+    <div className="min-h-screen flex flex-col" style={appStyle}>
+      <Navbar
+        activePage={activePage}
+        onNavigate={onNavigateFromChrome}
+        user={user}
+        onLoginClick={onLoginClick}
+        onLogoutClick={onLogoutClick}
+      />
+      <main
+        className={`flex-grow ${needsContainer ? 'container mx-auto' : ''}`}
+      >
+        <Outlet />
+      </main>
+      <Footer activePage={activePage} onNavigate={onNavigateFromChrome} />
+    </div>
+  );
+}
+
 function App() {
-  const [activePage, setActivePage] = useState<Page>(Page.About);
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const [solvedProblems, setSolvedProblems] = useState<SolvedProblem[]>([]);
   const [appProblems, setAppProblems] = useState<Problem[]>([]);
   const [problemsReady, setProblemsReady] = useState(false);
-  const [user, setUser] = useState<AuthUser | null>(() => getStoredAuth()?.user ?? null);
+  const [user, setUser] = useState<AuthUser | null>(
+    () => getStoredAuth()?.user ?? null,
+  );
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [isSessionActive, setIsSessionActive] = useState(false);
+  const [, setIsSessionActive] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -71,7 +152,6 @@ function App() {
     };
   }, []);
 
-  // Validate stored token on mount; clear if it's no longer valid.
   useEffect(() => {
     const stored = getStoredAuth();
     if (!stored) return;
@@ -84,7 +164,6 @@ function App() {
         setUser(null);
         return;
       }
-      // Refresh local copy with the latest profile fields.
       const refreshed: AuthUser = {
         userId: me.userId,
         username: me.username,
@@ -100,7 +179,6 @@ function App() {
     };
   }, []);
 
-  // When a user logs in (or is restored on mount), pull their persisted history.
   useEffect(() => {
     if (!user) {
       setSolvedProblems([]);
@@ -125,7 +203,6 @@ function App() {
   const handleAddSolvedProblem = (problem: SolvedProblem) => {
     setSolvedProblems(prev => [...prev, problem]);
 
-    // Only adjust MOHS difficulty for explicitly solved problems, not skips
     if (problem.status !== 'skipped' && problem.difficultyRating > 0) {
       setAppProblems(prevProblems =>
         prevProblems.map(p => {
@@ -138,79 +215,21 @@ function App() {
           if (!shouldUpdateMohs(p.difficulty, newMohs)) return p;
           console.log(
             `[MOHS UPDATE] Problem ${p.id} "${p.topic}": ${p.difficulty} → ${newMohs} MOHS ` +
-            `(user rated ${problem.difficultyRating}/10)`,
+              `(user rated ${problem.difficultyRating}/10)`,
           );
           return { ...p, difficulty: newMohs };
         }),
       );
     }
   };
-  
-  const handleNavigate = (page: Page) => {
+
+  const navigateFromChrome = (page: Page) => {
     if (page !== Page.Play && page !== Page.Competition) {
-        setIsSessionActive(false);
+      setIsSessionActive(false);
     }
-    setActivePage(page);
+    navigate(pathForPage(page));
   };
 
-  const renderContent = () => {
-    switch (activePage) {
-      case Page.About:
-        return (
-          <AboutPage
-            onStartPlay={() => setActivePage(Page.Play)}
-            onStartCompetition={() => setActivePage(Page.Competition)}
-            onChooseMode={() => setActivePage(Page.SessionSettings)}
-          />
-        );
-      case Page.SessionSettings:
-        return (
-          <SessionSettingsPage
-            onModeSelect={(mode) => {
-              if (mode === 'endless') {
-                setActivePage(Page.Play);
-              } else if (mode === 'competition') {
-                setActivePage(Page.Competition);
-              }
-            }}
-          />
-        );
-      case Page.Leaderboard:
-        return <LeaderboardPage />;
-      case Page.Terms:
-        return <TermsPage />;
-      case Page.Progress:
-        return <ProgressPage solvedProblems={solvedProblems} isLoggedIn={!!user} />;
-      case Page.Competition:
-        return <CompetitionPage 
-            problems={appProblems}
-            problemsLoading={!problemsReady}
-            userId={user?.userId ?? null}
-            onProblemSolved={handleAddSolvedProblem}
-            onSessionStart={() => setIsSessionActive(true)}
-            onSessionEnd={() => {
-                setIsSessionActive(false);
-                setActivePage(Page.SessionSettings);
-            }}
-        />;
-      case Page.Play:
-      default:
-        return <PlayPage 
-            problems={appProblems}
-            problemsLoading={!problemsReady}
-            solvedProblems={solvedProblems}
-            userId={user?.userId ?? null}
-            onProblemSolved={handleAddSolvedProblem}
-            onSessionStart={() => setIsSessionActive(true)}
-            onBackToAbout={() => setActivePage(Page.About)}
-            onSessionEnd={() => {
-                setIsSessionActive(false);
-                setActivePage(Page.SessionSettings);
-            }}
-        />;
-    }
-  };
-  
   const handleLogin = (auth: GoogleAuthResult) => {
     const next: AuthUser = {
       userId: auth.userId,
@@ -222,54 +241,100 @@ function App() {
     setUser(next);
     setShowLoginModal(false);
   };
-  
+
   const handleLogout = () => {
-      clearStoredAuth();
-      setUser(null);
-      setIsSessionActive(false);
-      if ([Page.Progress, Page.Play, Page.SessionSettings, Page.Competition].includes(activePage)) {
-        setActivePage(Page.About);
-      }
+    clearStoredAuth();
+    setUser(null);
+    setIsSessionActive(false);
+    const p = location.pathname;
+    if (['/progress', '/play', '/session', '/competition'].includes(p)) {
+      navigate('/');
+    }
   };
-
-  const isImmersiveMode = activePage === Page.Play || activePage === Page.Competition;
-  const isAboutPage = activePage === Page.About;
-  const isSettingsPage = activePage === Page.SessionSettings;
-
-  const appStyle: React.CSSProperties = {};
-  if (isSettingsPage) {
-    appStyle.backgroundImage = `
-      radial-gradient(ellipse 80% 100% at 90% 10%, rgba(226, 183, 19, 0.15), transparent 70%),
-      radial-gradient(ellipse 80% 100% at 10% 90%, rgba(226, 183, 19, 0.08), transparent 70%)
-    `;
-    appStyle.backgroundRepeat = 'no-repeat';
-  } else if (isAboutPage || activePage === Page.Leaderboard || activePage === Page.Terms) {
-    appStyle.backgroundImage = `
-      radial-gradient(ellipse 80% 100% at 90% 10%, rgba(226, 183, 19, 0.10), transparent 70%),
-      radial-gradient(ellipse 80% 100% at 10% 90%, rgba(226, 183, 19, 0.05), transparent 70%)
-    `;
-    appStyle.backgroundRepeat = 'no-repeat';
-  }
-
 
   return (
     <MathJaxContext config={mathJaxConfig}>
-      <div className="min-h-screen flex flex-col" style={appStyle}>
-        {showLoginModal && <LoginModal onLogin={handleLogin} onClose={() => setShowLoginModal(false)} />}
-        {!isImmersiveMode && (
-          <Navbar 
-              activePage={activePage} 
-              onNavigate={handleNavigate} 
+      {showLoginModal && (
+        <LoginModal onLogin={handleLogin} onClose={() => setShowLoginModal(false)} />
+      )}
+      <ScrollToTop />
+      <Routes>
+        <Route
+          path="/play"
+          element={
+            <PlayPage
+              problems={appProblems}
+              problemsLoading={!problemsReady}
+              solvedProblems={solvedProblems}
+              userId={user?.userId ?? null}
+              onProblemSolved={handleAddSolvedProblem}
+              onSessionStart={() => setIsSessionActive(true)}
+              onBackToAbout={() => navigate('/')}
+              onSessionEnd={() => {
+                setIsSessionActive(false);
+                navigate('/session');
+              }}
+            />
+          }
+        />
+        <Route
+          path="/competition"
+          element={
+            <CompetitionPage
+              problems={appProblems}
+              problemsLoading={!problemsReady}
+              userId={user?.userId ?? null}
+              onProblemSolved={handleAddSolvedProblem}
+              onSessionStart={() => setIsSessionActive(true)}
+              onSessionEnd={() => {
+                setIsSessionActive(false);
+                navigate('/session');
+              }}
+            />
+          }
+        />
+        <Route
+          path="/"
+          element={
+            <MainShell
               user={user}
+              onNavigateFromChrome={navigateFromChrome}
               onLoginClick={() => setShowLoginModal(true)}
               onLogoutClick={handleLogout}
+            />
+          }
+        >
+          <Route
+            index
+            element={
+              <AboutPage
+                onStartPlay={() => navigate('/play')}
+                onStartCompetition={() => navigate('/competition')}
+                onChooseMode={() => navigate('/session')}
+              />
+            }
           />
-        )}
-        <main className={`flex-grow ${isImmersiveMode ? 'min-h-0' : ''} ${isImmersiveMode || isAboutPage || isSettingsPage || activePage === Page.Leaderboard || activePage === Page.Terms ? "" : "container mx-auto"}`}>
-          {renderContent()}
-        </main>
-        {!isImmersiveMode && <Footer activePage={activePage} onNavigate={handleNavigate} />}
-      </div>
+          <Route
+            path="session"
+            element={
+              <SessionSettingsPage
+                onModeSelect={mode => {
+                  navigate(mode === 'endless' ? '/play' : '/competition');
+                }}
+              />
+            }
+          />
+          <Route path="leaderboard" element={<LeaderboardPage />} />
+          <Route path="terms" element={<TermsPage />} />
+          <Route
+            path="progress"
+            element={
+              <ProgressPage solvedProblems={solvedProblems} isLoggedIn={!!user} />
+            }
+          />
+        </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </MathJaxContext>
   );
 }

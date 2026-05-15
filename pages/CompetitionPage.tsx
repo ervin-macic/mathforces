@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { SolvedProblem, Problem } from '../types';
 import { MathJax } from 'better-react-mathjax';
+import { MathJaxFitBlock } from '../components/MathJaxFitBlock';
 import {
   pickCompetitionProblems,
   canPickCompetitionProblems,
@@ -23,6 +24,13 @@ interface CompetitionPageProps {
 }
 
 const COMPETITION_DURATION = 4.5 * 60 * 60;
+
+/** Statement typography aligned with practice mode for consistent MathJax fit. */
+const COMP_STATEMENT_MATH_BODY =
+  'text-base leading-snug sm:leading-relaxed md:text-lg md:leading-relaxed lg:text-xl lg:leading-relaxed xl:text-2xl';
+
+const COMP_SOLUTION_MATH_BODY =
+  'text-sm leading-relaxed sm:leading-relaxed md:text-sm md:leading-loose lg:text-base lg:leading-loose xl:text-lg xl:leading-loose';
 
 function uuid(): string {
     if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -125,12 +133,6 @@ const CompetitionPage: React.FC<CompetitionPageProps> = ({
     const handleGenerateNew = () => {
         setIsTimerRunning(false); 
         setupCompetition();
-    };
-
-    const handleCheckboxChange = (index: number) => {
-        const newMask = [...solvedMask];
-        newMask[index] = !newMask[index];
-        setSolvedMask(newMask);
     };
 
     const toggleSolutionPanel = (index: number) => {
@@ -263,10 +265,10 @@ const CompetitionPage: React.FC<CompetitionPageProps> = ({
     }
     
     return (
-        <div className="relative min-h-0 h-dvh max-h-dvh overflow-hidden">
-            <div className={`${activeClasses} min-h-0 overflow-y-auto overscroll-y-contain`}>
-                <div
-                    className="sticky top-0 z-30 flex w-full shrink-0 items-center justify-between gap-4 border-b border-secondary/40 bg-primary/95 px-4 pb-3 backdrop-blur-sm pt-[max(0.75rem,env(safe-area-inset-top,0px))] sm:px-8"
+        <div className="relative flex h-dvh max-h-dvh min-h-0 flex-col overflow-hidden">
+            <div className={`${activeClasses} flex min-h-0 flex-1 flex-col overflow-hidden`}>
+                <header
+                    className="z-30 flex w-full shrink-0 items-center justify-between gap-4 border-b border-secondary/40 bg-primary/95 px-4 pb-3 backdrop-blur-sm pt-[max(0.75rem,env(safe-area-inset-top,0px))] sm:px-8"
                 >
                     <button
                         type="button"
@@ -276,53 +278,59 @@ const CompetitionPage: React.FC<CompetitionPageProps> = ({
                         &larr; End Session
                     </button>
                     <CountdownTimer seconds={timeLeft} />
-                </div>
-                <div className="mx-auto flex w-full min-w-0 max-w-5xl flex-col px-4 pb-[max(6rem,env(safe-area-inset-bottom,0px))] sm:px-8">
-                    <main className="grid w-full min-w-0 grid-cols-1 gap-6 py-4">
-                        {competitionProblems.map((problem, index) => (
-                             <div key={problem.id} className="flex min-w-0 items-start gap-4 sm:gap-6">
-                                <input
-                                    type="checkbox"
-                                    id={`problem-${problem.id}`}
-                                    checked={solvedMask[index]}
-                                    onChange={() => handleCheckboxChange(index)}
-                                    className="h-6 w-6 mt-2 flex-shrink-0 rounded bg-primary border-light-secondary text-accent focus:ring-accent cursor-pointer"
-                                    aria-label={`Mark problem ${index + 1} as solved`}
-                                />
-                                <div className="min-w-0 flex-1 space-y-3 bg-secondary p-6 rounded-lg shadow-lg text-lg">
-                                    <p className="text-sm font-semibold text-accent/90">Problem {index + 1}</p>
-                                    <div className="min-w-0 max-w-full overflow-x-auto text-light [scrollbar-gutter:stable]">
-                                        <MathJax dynamic>{problem.statement}</MathJax>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => toggleSolutionPanel(index)}
-                                        className="w-full rounded-lg border border-accent/40 bg-accent/15 px-4 py-2.5 text-sm font-semibold text-accent hover:bg-accent/25 transition-colors sm:w-auto"
-                                    >
-                                        {solutionOpen[index]
-                                            ? `Hide solution (problem ${index + 1})`
-                                            : `View solution (problem ${index + 1})`}
-                                    </button>
-                                    {solutionOpen[index] && (
-                                        <div className="border-t border-secondary pt-3">
-                                            {problem.solution?.trim() ? (
-                                                <div className="min-w-0 max-w-full overflow-x-auto text-base text-light/95 leading-relaxed font-mono [scrollbar-gutter:stable]">
-                                                    <MathJax dynamic>{problem.solution}</MathJax>
+                </header>
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                    <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain">
+                        <div className="mx-auto w-full min-w-0 max-w-5xl px-4 pb-4 pt-4 sm:px-8">
+                            <main className="grid w-full min-w-0 grid-cols-1 gap-6">
+                                {competitionProblems.map((problem, index) => (
+                                     <div key={problem.id} className="min-w-0">
+                                        <div className="min-w-0 space-y-3 bg-secondary p-6 rounded-lg shadow-lg text-lg">
+                                            <p className="text-sm font-semibold text-accent/90">Problem {index + 1}</p>
+                                            <MathJaxFitBlock
+                                                key={`stmt-${problem.id}`}
+                                                layoutPaused={animationStage !== 'ACTIVE'}
+                                                className="min-w-0 w-full max-w-full overflow-x-hidden text-light px-0 sm:px-1"
+                                                contentClassName={`block w-full max-w-full min-w-0 text-left font-mono ${COMP_STATEMENT_MATH_BODY}`}
+                                            >
+                                                {problem.statement}
+                                            </MathJaxFitBlock>
+                                            <button
+                                                type="button"
+                                                onClick={() => toggleSolutionPanel(index)}
+                                                className="w-full rounded-lg border border-accent/40 bg-accent/15 px-4 py-2.5 text-sm font-semibold text-accent hover:bg-accent/25 transition-colors sm:w-auto"
+                                            >
+                                                {solutionOpen[index]
+                                                    ? `Hide solution (problem ${index + 1})`
+                                                    : `View solution (problem ${index + 1})`}
+                                            </button>
+                                            {solutionOpen[index] && (
+                                                <div className="border-t border-secondary pt-3">
+                                                    {problem.solution?.trim() ? (
+                                                        <MathJaxFitBlock
+                                                            key={`sol-${problem.id}`}
+                                                            layoutPaused={animationStage !== 'ACTIVE'}
+                                                            className="min-w-0 w-full max-w-full overflow-x-hidden text-base text-light/95"
+                                                            contentClassName={`block w-full max-w-full min-w-0 text-left font-mono ${COMP_SOLUTION_MATH_BODY}`}
+                                                        >
+                                                            {problem.solution}
+                                                        </MathJaxFitBlock>
+                                                    ) : (
+                                                        <p className="text-sm text-light-secondary">
+                                                            No written solution in the dataset for this problem.
+                                                        </p>
+                                                    )}
                                                 </div>
-                                            ) : (
-                                                <p className="text-sm text-light-secondary">
-                                                    No written solution in the dataset for this problem.
-                                                </p>
                                             )}
                                         </div>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
-                    </main>
-                    <footer className="flex shrink-0 flex-col items-center justify-center gap-4 border-t border-secondary/30 pt-6 sm:flex-row">
-                        <button onClick={handleGenerateNew} className="w-full sm:w-auto bg-secondary text-light px-8 py-3 rounded-lg hover:bg-accent hover:text-primary transition-all font-semibold text-lg shadow-md hover:shadow-lg">Generate New Competition</button>
-                        <button onClick={handleMarkAsDone} className="w-full sm:w-auto bg-accent text-primary font-bold px-8 py-3 rounded-lg hover:opacity-90 transition-all text-lg shadow-md hover:shadow-lg">Mark as Done</button>
+                                    </div>
+                                ))}
+                            </main>
+                        </div>
+                    </div>
+                    <footer className="flex shrink-0 flex-col items-center justify-center gap-3 border-t border-secondary/40 bg-primary/95 px-4 py-3 backdrop-blur-sm pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pt-4 sm:flex-row sm:gap-4 sm:px-8">
+                        <button type="button" onClick={handleGenerateNew} className="w-full rounded-lg bg-secondary px-6 py-2.5 text-base font-semibold text-light shadow-md transition-all hover:bg-accent hover:text-primary hover:shadow-lg sm:w-auto sm:px-8 sm:py-3 sm:text-lg">Generate New Competition</button>
+                        <button type="button" onClick={handleMarkAsDone} className="w-full rounded-lg bg-accent px-6 py-2.5 text-base font-bold text-primary shadow-md transition-all hover:opacity-90 sm:w-auto sm:px-8 sm:py-3 sm:text-lg">Mark as Done</button>
                     </footer>
                 </div>
             </div>
