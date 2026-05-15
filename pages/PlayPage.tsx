@@ -537,7 +537,7 @@ const PlayPage: React.FC<PlayPageProps> = ({
             <h2 className="text-2xl font-bold mb-4 text-accent">Problem Solved!</h2>
             <p className="mb-6 text-light/80">Rate the difficulty of this problem.</p>
             <DifficultyStarRating
-              active={animationStage === 'RATING_VIEW'}
+              active={animationStage === 'RATING_VIEW' || animationStage === 'RATING_EXITING'}
               onChooseRating={handleConfirmSolve}
             />
             <button

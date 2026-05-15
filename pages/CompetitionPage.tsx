@@ -346,8 +346,8 @@ const CompetitionPage: React.FC<CompetitionPageProps> = ({
                 </div>
             </div>
 
-            <div className={ratingClasses}>
-                <div className="flex flex-col items-center justify-center min-h-dvh p-8">
+            <div className={`${ratingClasses} overflow-y-auto overscroll-y-contain`}>
+                <div className="flex min-h-full flex-col items-center justify-center p-8">
                     <div className="bg-secondary p-8 rounded-lg shadow-2xl w-full max-w-3xl mx-4 text-center">
                         <h2 className="text-3xl font-bold mb-4 text-accent">Competition Complete!</h2>
                         <p className="mb-8 text-light/80">
