@@ -1,11 +1,18 @@
 import { MathJax } from 'better-react-mathjax';
 import { useCallback, useLayoutEffect, useRef } from 'react';
+import type { Key, ReactNode } from 'react';
 
 /** Do not shrink rendered math below this factor; wider content then uses horizontal scroll on the slot. */
 const MIN_READABLE_SCALE = 0.75;
 
 /** Vertical padding around equation slots that show a horizontal scrollbar */
 const SCROLL_SLOT_PAD_Y = '0.875rem';
+
+/** Total vertical padding (top + bottom) in px — matches SCROLL_SLOT_PAD_Y at root font size. */
+function scrollSlotVerticalPadPx(): number {
+  const fs = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+  return 2 * 0.875 * fs;
+}
 
 const SLOT_ATTR = 'data-mathjax-fit-slot';
 
@@ -58,11 +65,18 @@ function ensureSlot(mjx: HTMLElement): HTMLElement {
 }
 
 export interface MathJaxFitBlockProps {
+  /** React reconciliation key — listed so strict TS JSX accepts `<MathJax key={...}>`. */
+  key?: Key | null;
   /** Outer wrapper (width, padding, overscroll, responsive overflow from Tailwind). */
   className?: string;
   /** Inner wrapper around MathJax (prose typography — never scaled). */
   contentClassName?: string;
-  children: React.ReactNode;
+  children: ReactNode;
+  /**
+   * When true, MathJax re-typesets on every React render (`better-react-mathjax` default).
+   * That retriggers full layout here and can **nest duplicate `mjx-container` trees** (severe lag).
+   * Keep false for stable keyed strings; set true only if `children` updates without remounting.
+   */
   dynamic?: boolean;
   /** When true, skip all layout work (used while rating overlay is active so the main thread stays responsive). */
   layoutPaused?: boolean;
@@ -78,7 +92,7 @@ export function MathJaxFitBlock({
   className,
   contentClassName,
   children,
-  dynamic = true,
+  dynamic = false,
   layoutPaused = false,
 }: MathJaxFitBlockProps) {
   const outerRef = useRef<HTMLDivElement>(null);
@@ -99,7 +113,7 @@ export function MathJaxFitBlock({
     const columnW = inner.clientWidth;
     if (columnW <= 0) return;
 
-    const allMjxs = Array.from(inner.querySelectorAll<HTMLElement>('mjx-container'));
+    const allMjxs = Array.from(inner.querySelectorAll('mjx-container')) as HTMLElement[];
 
     for (const mjx of allMjxs) {
       mjx.style.removeProperty('transform');
@@ -108,7 +122,10 @@ export function MathJaxFitBlock({
       if (slot?.getAttribute(SLOT_ATTR) === 'true') {
         slot.classList.remove('mathjax-scroll-x');
         slot.style.removeProperty('min-height');
+        slot.style.removeProperty('height');
+        slot.style.removeProperty('overflow');
         slot.style.removeProperty('overflow-x');
+        slot.style.removeProperty('overflow-y');
         slot.style.removeProperty('overscroll-behavior-x');
         slot.style.removeProperty('width');
         slot.style.removeProperty('max-width');
@@ -141,8 +158,11 @@ export function MathJaxFitBlock({
       const slot = ensureSlot(mjx);
       mjx.style.transform = `scale(${scale})`;
       mjx.style.transformOrigin = 'top left';
-      slot.style.minHeight = `${naturalH * scale}px`;
+      const scaledH = naturalH * scale;
       if (needsScroll) {
+        const slotH = scaledH + scrollSlotVerticalPadPx();
+        slot.style.height = `${slotH}px`;
+        slot.style.minHeight = `${slotH}px`;
         slot.classList.add('mathjax-scroll-x');
         slot.style.overflowX = 'auto';
         slot.style.overflowY = 'hidden';
@@ -156,8 +176,10 @@ export function MathJaxFitBlock({
         }
       } else {
         slot.classList.remove('mathjax-scroll-x');
+        slot.style.height = `${scaledH}px`;
+        slot.style.minHeight = `${scaledH}px`;
+        slot.style.overflow = 'hidden';
         slot.style.overflowX = 'hidden';
-        slot.style.removeProperty('overflow-y');
         slot.style.removeProperty('overscroll-behavior-x');
         slot.style.removeProperty('padding-top');
         slot.style.removeProperty('padding-bottom');

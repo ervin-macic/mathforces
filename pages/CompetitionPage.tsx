@@ -1,16 +1,21 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { SolvedProblem, Problem } from '../types';
-import { MathJax } from 'better-react-mathjax';
 import { MathJaxFitBlock } from '../components/MathJaxFitBlock';
+import { DifficultyStarRating } from '../components/DifficultyStarRating';
 import {
   pickCompetitionProblems,
   canPickCompetitionProblems,
 } from '../lib/competitionProblems';
 import { postAttempt } from '../lib/apiClient';
+import { firePracticeConfetti } from '../lib/confettiGate';
+import {
+    HINT_SOLUTION_MATH_BODY_COMPETITION,
+    STATEMENT_MATH_BODY_COMPETITION,
+} from '../lib/mathBodyTypography';
 
 declare const confetti: any;
 
-type Ratings = Record<number, number>;
+type CompetitionRatingsState = Record<number, number | undefined>;
 type AnimationStage = 'INTRO' | 'ACTIVE' | 'RATING' | 'RATING_EXITING' | 'ACTIVE_EXITING';
 
 interface CompetitionPageProps {
@@ -24,13 +29,6 @@ interface CompetitionPageProps {
 }
 
 const COMPETITION_DURATION = 4.5 * 60 * 60;
-
-/** Statement typography aligned with practice mode for consistent MathJax fit. */
-const COMP_STATEMENT_MATH_BODY =
-  'text-base leading-snug sm:leading-relaxed md:text-lg md:leading-relaxed lg:text-xl lg:leading-relaxed xl:text-2xl';
-
-const COMP_SOLUTION_MATH_BODY =
-  'text-sm leading-relaxed sm:leading-relaxed md:text-sm md:leading-loose lg:text-base lg:leading-loose xl:text-lg xl:leading-loose';
 
 function uuid(): string {
     if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -67,7 +65,7 @@ const CompetitionPage: React.FC<CompetitionPageProps> = ({
     const [competitionProblems, setCompetitionProblems] = useState<Problem[]>([]);
     const [timeLeft, setTimeLeft] = useState(COMPETITION_DURATION);
     const [solvedMask, setSolvedMask] = useState<boolean[]>([false, false, false]);
-    const [ratings, setRatings] = useState<Ratings>({});
+    const [ratings, setRatings] = useState<CompetitionRatingsState>({});
     const [isTimerRunning, setIsTimerRunning] = useState(false);
     const [sessionId, setSessionId] = useState<string>(() => uuid());
     const [solutionOpen, setSolutionOpen] = useState<[boolean, boolean, boolean]>([
@@ -113,6 +111,13 @@ const CompetitionPage: React.FC<CompetitionPageProps> = ({
         [problems],
     );
 
+    const competitionRatingsComplete = useMemo(() => {
+        return competitionProblems.every((problem, index) => {
+            if (!solvedMask[index]) return true;
+            return ratings[problem.id] !== undefined;
+        });
+    }, [competitionProblems, solvedMask, ratings]);
+
     useEffect(() => {
         let timer: ReturnType<typeof setTimeout>;
         if (animationStage === 'RATING_EXITING' || animationStage === 'ACTIVE_EXITING') {
@@ -148,7 +153,7 @@ const CompetitionPage: React.FC<CompetitionPageProps> = ({
         const solvedCount = solvedMask.filter(Boolean).length;
         if (solvedCount > 0) {
             if (typeof confetti === 'function') {
-                confetti({ particleCount: 150, spread: 120, origin: { y: 0.6 } });
+                firePracticeConfetti(confetti);
             }
             setAnimationStage('RATING');
         } else {
@@ -161,11 +166,14 @@ const CompetitionPage: React.FC<CompetitionPageProps> = ({
     };
 
     const handleSubmitRatings = () => {
+        if (!competitionRatingsComplete) return;
         const timeSpent = COMPETITION_DURATION - timeLeft;
         competitionProblems.forEach((problem, index) => {
             const solved = solvedMask[index];
             if (solved) {
-                const rating = ratings[problem.id] || 5;
+                const rating = ratings[problem.id];
+                if (rating === undefined) return;
+
                 const newSolvedProblem: SolvedProblem = {
                     problem,
                     timeSpent,
@@ -181,7 +189,7 @@ const CompetitionPage: React.FC<CompetitionPageProps> = ({
                         sessionId,
                         status: 'solved',
                         timeSpentSec: timeSpent,
-                        userRating: rating,
+                        ...(rating > 0 ? { userRating: rating } : {}),
                     });
                 }
             } else if (userId !== null) {
@@ -282,23 +290,23 @@ const CompetitionPage: React.FC<CompetitionPageProps> = ({
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
                     <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain">
                         <div className="mx-auto w-full min-w-0 max-w-5xl px-4 pb-4 pt-4 sm:px-8">
-                            <main className="grid w-full min-w-0 grid-cols-1 gap-6">
+                            <main className="grid w-full min-w-0 grid-cols-1 gap-4">
                                 {competitionProblems.map((problem, index) => (
                                      <div key={problem.id} className="min-w-0">
-                                        <div className="min-w-0 space-y-3 bg-secondary p-6 rounded-lg shadow-lg text-lg">
+                                        <div className="min-w-0 space-y-3 bg-secondary p-4 rounded-lg shadow-lg text-sm">
                                             <p className="text-sm font-semibold text-accent/90">Problem {index + 1}</p>
                                             <MathJaxFitBlock
                                                 key={`stmt-${problem.id}`}
                                                 layoutPaused={animationStage !== 'ACTIVE'}
                                                 className="min-w-0 w-full max-w-full overflow-x-hidden text-light px-0 sm:px-1"
-                                                contentClassName={`block w-full max-w-full min-w-0 text-left font-mono ${COMP_STATEMENT_MATH_BODY}`}
+                                                contentClassName={`block w-full max-w-full min-w-0 text-left font-mono ${STATEMENT_MATH_BODY_COMPETITION}`}
                                             >
                                                 {problem.statement}
                                             </MathJaxFitBlock>
                                             <button
                                                 type="button"
                                                 onClick={() => toggleSolutionPanel(index)}
-                                                className="w-full rounded-lg border border-accent/40 bg-accent/15 px-4 py-2.5 text-sm font-semibold text-accent hover:bg-accent/25 transition-colors sm:w-auto"
+                                                className="w-full rounded-lg border border-accent/40 bg-accent/15 px-3 py-2 text-xs font-semibold text-accent hover:bg-accent/25 transition-colors sm:w-auto sm:px-4 sm:text-sm"
                                             >
                                                 {solutionOpen[index]
                                                     ? `Hide solution (problem ${index + 1})`
@@ -310,8 +318,8 @@ const CompetitionPage: React.FC<CompetitionPageProps> = ({
                                                         <MathJaxFitBlock
                                                             key={`sol-${problem.id}`}
                                                             layoutPaused={animationStage !== 'ACTIVE'}
-                                                            className="min-w-0 w-full max-w-full overflow-x-hidden text-base text-light/95"
-                                                            contentClassName={`block w-full max-w-full min-w-0 text-left font-mono ${COMP_SOLUTION_MATH_BODY}`}
+                                                            className="min-w-0 w-full max-w-full overflow-x-hidden text-sm text-light/95"
+                                                            contentClassName={`block w-full max-w-full min-w-0 text-left font-mono ${HINT_SOLUTION_MATH_BODY_COMPETITION}`}
                                                         >
                                                             {problem.solution}
                                                         </MathJaxFitBlock>
@@ -329,8 +337,8 @@ const CompetitionPage: React.FC<CompetitionPageProps> = ({
                         </div>
                     </div>
                     <footer className="flex shrink-0 flex-col items-center justify-center gap-3 border-t border-secondary/40 bg-primary/95 px-4 py-3 backdrop-blur-sm pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pt-4 sm:flex-row sm:gap-4 sm:px-8">
-                        <button type="button" onClick={handleGenerateNew} className="w-full rounded-lg bg-secondary px-6 py-2.5 text-base font-semibold text-light shadow-md transition-all hover:bg-accent hover:text-primary hover:shadow-lg sm:w-auto sm:px-8 sm:py-3 sm:text-lg">Generate New Competition</button>
-                        <button type="button" onClick={handleMarkAsDone} className="w-full rounded-lg bg-accent px-6 py-2.5 text-base font-bold text-primary shadow-md transition-all hover:opacity-90 sm:w-auto sm:px-8 sm:py-3 sm:text-lg">Mark as Done</button>
+                        <button type="button" onClick={handleGenerateNew} className="w-full rounded-lg bg-secondary px-5 py-2 text-sm font-semibold text-light shadow-md transition-all hover:bg-accent hover:text-primary hover:shadow-lg sm:w-auto sm:px-6 sm:py-2.5 sm:text-base">Generate New Competition</button>
+                        <button type="button" onClick={handleMarkAsDone} className="w-full rounded-lg bg-accent px-5 py-2 text-sm font-bold text-primary shadow-md transition-all hover:opacity-90 sm:w-auto sm:px-6 sm:py-2.5 sm:text-base">Mark as Done</button>
                     </footer>
                 </div>
             </div>
@@ -341,25 +349,48 @@ const CompetitionPage: React.FC<CompetitionPageProps> = ({
                         <h2 className="text-3xl font-bold mb-4 text-accent">Competition Complete!</h2>
                         <p className="mb-8 text-light/80">Rate the difficulty of the problems you solved.</p>
                         <div className="space-y-8">
-                            {competitionProblems.filter((_, i) => solvedMask[i]).map(p => (
-                                <div key={p.id} className="text-left">
-                                    <p className="font-semibold text-light truncate mb-3"><MathJax inline dynamic>{p.statement.substring(0, 80)}...</MathJax></p>
-                                    <div className="flex justify-center space-x-1 sm:space-x-2">
-                                        {[...Array(10)].map((_, i) => {
-                                            const ratingValue = i + 1;
-                                            return (
-                                                <button key={ratingValue} onClick={() => handleRatingChange(p.id, ratingValue)} className="group focus:outline-none">
-                                                    <svg className={`w-7 h-7 transition-colors ${ratingValue <= (ratings[p.id] || 0) ? 'text-accent' : 'text-light-secondary'}`} fill="currentColor" viewBox="0 0 20 20">
-                                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.959a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.368 2.448a1 1 0 00-.364 1.118l1.287 3.959c.3.921-.755 1.688-1.54 1.118l-3.368-2.448a1 1 0 00-1.176 0l-3.368 2.448c-.784.57-1.838-.197-1.539-1.118l1.287-3.959a1 1 0 00-.364-1.118L2.05 9.386c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69L9.049 2.927z" />
-                                                    </svg>
-                                                </button>
-                                            );
-                                        })}
+                            {competitionProblems.map((p, i) =>
+                                solvedMask[i] ? (
+                                    <div key={p.id} className="text-center sm:text-left">
+                                        <p className="mb-2 font-semibold text-light">
+                                            Problem {i + 1}
+                                            <span className="text-light-secondary font-normal"> · {p.topic}</span>
+                                        </p>
+                                        <DifficultyStarRating
+                                            mode="persistent"
+                                            active={animationStage === 'RATING'}
+                                            value={ratings[p.id]}
+                                            onChange={n => handleRatingChange(p.id, n)}
+                                            className="mb-3"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => handleRatingChange(p.id, 0)}
+                                            className="mx-auto flex w-full max-w-[min(100%,20rem)] items-center justify-center rounded-xl border border-secondary/90 bg-primary/50 px-3 py-2 text-xs font-medium text-light-secondary transition-colors hover:border-accent/45 hover:text-accent sm:mx-0 sm:px-4 sm:py-2.5 sm:text-sm"
+                                        >
+                                            Skip rating
+                                        </button>
                                     </div>
-                                </div>
-                            ))}
+                                ) : null,
+                            )}
                         </div>
-                        <button onClick={handleSubmitRatings} className="w-full bg-accent text-primary font-bold py-3 mt-10 rounded-md hover:opacity-90 transition-opacity">Submit and Finish</button>
+                        {!competitionRatingsComplete && (
+                            <p className="mt-6 text-center text-sm text-light-secondary">
+                                Rate or skip each solved problem to continue.
+                            </p>
+                        )}
+                        <button
+                            type="button"
+                            onClick={handleSubmitRatings}
+                            disabled={!competitionRatingsComplete}
+                            className="mt-8 w-full rounded-md bg-accent py-2.5 text-sm font-bold text-primary transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 sm:mt-10 sm:py-3 sm:text-base"
+                        >
+                            Submit and Finish
+                        </button>
+                        <p className="mx-auto mt-3 max-w-md px-2 text-center text-xs leading-relaxed text-light-secondary sm:mt-4 sm:text-sm md:text-[0.9375rem]">
+                            Tap stars to rate each problem, or skip — skipping won&apos;t update difficulty calibration
+                            from your rating.
+                        </p>
                     </div>
                 </div>
             </div>

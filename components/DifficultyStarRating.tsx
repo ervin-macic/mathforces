@@ -1,28 +1,60 @@
 import React, { useEffect, useState } from 'react';
 
-export interface DifficultyStarRatingProps {
-  /** Rating overlay is interactive only in this stage. */
-  active: boolean;
-  onChooseRating: (rating: number) => void;
-}
+export type DifficultyStarRatingProps =
+  | {
+      active: boolean;
+      mode?: 'advance';
+      onChooseRating: (rating: number) => void;
+      className?: string;
+    }
+  | {
+      active: boolean;
+      mode: 'persistent';
+      /** `undefined` = not chosen; `0` = skipped; `1`–`10` = rated */
+      value: number | undefined;
+      onChange: (rating: number) => void;
+      className?: string;
+    };
 
 /**
  * Self-contained difficulty stars so hover/selection state does not re-render
  * the parent (e.g. PlayPage with large MathJax trees).
  */
-export function DifficultyStarRating({ active, onChooseRating }: DifficultyStarRatingProps) {
+export function DifficultyStarRating(props: DifficultyStarRatingProps) {
+  const isPersistent = props.mode === 'persistent';
+  const wrapperClass = props.className !== undefined ? props.className : 'mb-8';
+
   const [hoverRating, setHoverRating] = useState<number | null>(null);
   const [selectedRating, setSelectedRating] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!active) {
+    if (!props.active) {
       setHoverRating(null);
-      setSelectedRating(null);
+      if (!isPersistent) {
+        setSelectedRating(null);
+      }
     }
-  }, [active]);
+  }, [props.active, isPersistent]);
+
+  const fillThreshold =
+    hoverRating ??
+    (isPersistent
+      ? props.value !== undefined && props.value > 0
+        ? props.value
+        : 0
+      : selectedRating ?? 0);
+
+  const handlePick = (ratingValue: number) => {
+    if (isPersistent) {
+      props.onChange(ratingValue);
+      return;
+    }
+    setSelectedRating(ratingValue);
+    props.onChooseRating(ratingValue);
+  };
 
   return (
-    <div className="mb-8" onMouseLeave={() => setHoverRating(null)}>
+    <div className={wrapperClass} onMouseLeave={() => setHoverRating(null)}>
       <div className="flex justify-center gap-2 sm:hidden">
         {[...Array(5)].map((_, i) => {
           const ratingValue = (i + 1) * 2;
@@ -30,19 +62,14 @@ export function DifficultyStarRating({ active, onChooseRating }: DifficultyStarR
             <button
               key={ratingValue}
               type="button"
-              onClick={() => {
-                setSelectedRating(ratingValue);
-                setTimeout(() => onChooseRating(ratingValue), 150);
-              }}
+              onClick={() => handlePick(ratingValue)}
               onMouseEnter={() => setHoverRating(ratingValue)}
               className="group focus:outline-none"
               aria-label={`Rate ${ratingValue} out of 10`}
             >
               <svg
                 className={`h-8 w-8 transition-colors ${
-                  ratingValue <= (hoverRating || selectedRating || 0)
-                    ? 'text-accent'
-                    : 'text-light-secondary'
+                  ratingValue <= fillThreshold ? 'text-accent' : 'text-light-secondary'
                 }`}
                 fill="currentColor"
                 viewBox="0 0 20 20"
@@ -60,19 +87,14 @@ export function DifficultyStarRating({ active, onChooseRating }: DifficultyStarR
             <button
               key={ratingValue}
               type="button"
-              onClick={() => {
-                setSelectedRating(ratingValue);
-                setTimeout(() => onChooseRating(ratingValue), 150);
-              }}
+              onClick={() => handlePick(ratingValue)}
               onMouseEnter={() => setHoverRating(ratingValue)}
               className="group focus:outline-none"
               aria-label={`Rate ${ratingValue} out of 10`}
             >
               <svg
                 className={`h-8 w-8 transition-colors ${
-                  ratingValue <= (hoverRating || selectedRating || 0)
-                    ? 'text-accent'
-                    : 'text-light-secondary'
+                  ratingValue <= fillThreshold ? 'text-accent' : 'text-light-secondary'
                 }`}
                 fill="currentColor"
                 viewBox="0 0 20 20"

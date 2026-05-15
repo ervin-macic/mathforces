@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MathJaxFitBlock } from './MathJaxFitBlock';
+import { HINT_SOLUTION_MATH_BODY } from '../lib/mathBodyTypography';
 
 interface TypewriterHintProps {
   text: string;
@@ -7,10 +8,6 @@ interface TypewriterHintProps {
   /** Same as solution block — skip fit layout while rating overlay is active. */
   layoutPaused?: boolean;
 }
-
-/** Match `PLAY_HINT_SOLUTION_MATH_BODY` in PlayPage.tsx */
-const HINT_MATH_BODY =
-  'text-sm leading-relaxed sm:leading-relaxed md:text-sm md:leading-loose lg:text-base lg:leading-loose xl:text-lg xl:leading-loose';
 
 const TypewriterHint: React.FC<TypewriterHintProps> = ({
   text,
@@ -60,7 +57,7 @@ const TypewriterHint: React.FC<TypewriterHintProps> = ({
     <MathJaxFitBlock
       layoutPaused={layoutPaused}
       className="min-w-0 w-full max-w-full overflow-x-hidden text-left"
-      contentClassName={`block w-full max-w-full min-w-0 align-top text-inherit font-mono ${HINT_MATH_BODY}`}
+      contentClassName={`block w-full max-w-full min-w-0 align-top text-inherit font-mono ${HINT_SOLUTION_MATH_BODY}`}
     >
       {text}
     </MathJaxFitBlock>

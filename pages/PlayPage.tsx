@@ -7,6 +7,8 @@ import { DifficultyStarRating } from '../components/DifficultyStarRating';
 import { selectNextProblem } from '../lib/recommendationEngine';
 import { randomIntExclusive } from '../lib/random';
 import { postAttempt } from '../lib/apiClient';
+import { firePracticeConfetti } from '../lib/confettiGate';
+import { HINT_SOLUTION_MATH_BODY, STATEMENT_MATH_BODY_PLAY } from '../lib/mathBodyTypography';
 
 declare const confetti: any;
 
@@ -26,18 +28,6 @@ interface PlayPageProps {
     /** Practice start screen only (immersive route has no navbar). */
     onBackToAbout?: () => void;
 }
-
-/**
- * Problem statement math + prose — largest body scale in play view.
- */
-const PLAY_STATEMENT_MATH_BODY =
-  'text-base leading-snug sm:leading-relaxed md:text-lg md:leading-relaxed lg:text-xl lg:leading-relaxed xl:text-2xl';
-
-/**
- * Hints and solution: same size at every breakpoint, always smaller than the statement.
- */
-const PLAY_HINT_SOLUTION_MATH_BODY =
-  'text-sm leading-relaxed sm:leading-relaxed md:text-sm md:leading-loose lg:text-base lg:leading-loose xl:text-lg xl:leading-loose';
 
 /** Cheap UUID v4-ish generator for session ids. */
 function uuid(): string {
@@ -180,7 +170,7 @@ const PlayPage: React.FC<PlayPageProps> = ({
     if (animationStage === 'RATING_EXITING' || animationStage === 'PROBLEM_EXITING') {
       timer = setTimeout(() => {
         setAnimationStage('PROBLEM_RESETTING');
-      }, 150);
+      }, 60);
     } else if (animationStage === 'PROBLEM_RESETTING') {
       goToNextProblemRef.current();
       setHintLevel(0);
@@ -220,18 +210,8 @@ const PlayPage: React.FC<PlayPageProps> = ({
   };
 
   const handleSolveProblem = () => {
-    const allowConfetti =
-      typeof window !== 'undefined' &&
-      typeof confetti === 'function' &&
-      window.matchMedia('(min-width: 640px)').matches;
-    if (allowConfetti) {
-      confetti({
-        particleCount: 150,
-        spread: 120,
-        origin: { y: 0.6 },
-        colors: ['#e2b713', '#d1d0c5', '#ffffff'],
-        scalar: 1.2
-      });
+    if (typeof confetti === 'function') {
+      firePracticeConfetti(confetti);
     }
     setAnimationStage('RATING_VIEW');
   };
@@ -464,7 +444,7 @@ const PlayPage: React.FC<PlayPageProps> = ({
               key={`stmt-${currentProblem.id}`}
               layoutPaused={animationStage !== 'PROBLEM_VIEW'}
               className="mb-8 min-w-0 w-full max-w-full overflow-x-hidden px-2 text-left sm:mb-10 sm:px-4"
-              contentClassName={`block w-full max-w-full min-w-0 align-top text-left text-light font-mono ${PLAY_STATEMENT_MATH_BODY}`}
+              contentClassName={`block w-full max-w-full min-w-0 align-top text-left text-light font-mono ${STATEMENT_MATH_BODY_PLAY}`}
             >
               {currentProblem.statement}
             </MathJaxFitBlock>
@@ -496,9 +476,9 @@ const PlayPage: React.FC<PlayPageProps> = ({
               {Array.from({ length: hintLevel }).map((_, index) => (
                 <div
                   key={index}
-                  className={`bg-secondary/50 p-4 rounded-lg mb-3 text-light/90 font-mono ${PLAY_HINT_SOLUTION_MATH_BODY}`}
+                  className={`bg-secondary/50 p-4 rounded-lg mb-3 text-light/90 font-mono ${HINT_SOLUTION_MATH_BODY}`}
                 >
-                  <p className="font-bold text-accent/80 mb-1 text-xs sm:text-sm">Hint {index + 1}:</p>
+                  <p className="font-bold text-accent/80 mb-1 text-xs">Hint {index + 1}:</p>
                   <TypewriterHint
                     text={currentProblem.hints[index]}
                     layoutPaused={animationStage !== 'PROBLEM_VIEW'}
@@ -532,7 +512,7 @@ const PlayPage: React.FC<PlayPageProps> = ({
                             key={`sol-${currentProblem.id}`}
                             layoutPaused={animationStage !== 'PROBLEM_VIEW'}
                             className="min-w-0 w-full max-w-full overflow-x-hidden text-left"
-                            contentClassName={`block w-full max-w-full min-w-0 align-top text-light font-mono ${PLAY_HINT_SOLUTION_MATH_BODY}`}
+                            contentClassName={`block w-full max-w-full min-w-0 align-top text-light font-mono ${HINT_SOLUTION_MATH_BODY}`}
                           >
                             {currentProblem.solution}
                           </MathJaxFitBlock>
