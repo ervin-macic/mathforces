@@ -16,7 +16,7 @@ import {
 declare const confetti: any;
 
 type CompetitionRatingsState = Record<number, number | undefined>;
-type AnimationStage = 'INTRO' | 'ACTIVE' | 'RATING' | 'RATING_EXITING' | 'ACTIVE_EXITING';
+type AnimationStage = 'INTRO' | 'ACTIVE' | 'RATING' | 'RATING_EXITING';
 
 interface CompetitionPageProps {
     problems: Problem[];
@@ -64,7 +64,6 @@ const CompetitionPage: React.FC<CompetitionPageProps> = ({
     const [animationStage, setAnimationStage] = useState<AnimationStage>('INTRO');
     const [competitionProblems, setCompetitionProblems] = useState<Problem[]>([]);
     const [timeLeft, setTimeLeft] = useState(COMPETITION_DURATION);
-    const [solvedMask, setSolvedMask] = useState<boolean[]>([false, false, false]);
     const [ratings, setRatings] = useState<CompetitionRatingsState>({});
     const [isTimerRunning, setIsTimerRunning] = useState(false);
     const [sessionId, setSessionId] = useState<string>(() => uuid());
@@ -100,7 +99,6 @@ const CompetitionPage: React.FC<CompetitionPageProps> = ({
             setCompetitionProblems(pickRandomProblems(problems, 3));
         }
         setTimeLeft(COMPETITION_DURATION);
-        setSolvedMask([false, false, false]);
         setRatings({});
         setSolutionOpen([false, false, false]);
         setIsTimerRunning(true);
@@ -111,16 +109,9 @@ const CompetitionPage: React.FC<CompetitionPageProps> = ({
         [problems],
     );
 
-    const competitionRatingsComplete = useMemo(() => {
-        return competitionProblems.every((problem, index) => {
-            if (!solvedMask[index]) return true;
-            return ratings[problem.id] !== undefined;
-        });
-    }, [competitionProblems, solvedMask, ratings]);
-
     useEffect(() => {
         let timer: ReturnType<typeof setTimeout>;
-        if (animationStage === 'RATING_EXITING' || animationStage === 'ACTIVE_EXITING') {
+        if (animationStage === 'RATING_EXITING') {
             timer = setTimeout(() => {
                 setAnimationStage('INTRO');
             }, 500);
@@ -150,30 +141,23 @@ const CompetitionPage: React.FC<CompetitionPageProps> = ({
 
     const handleMarkAsDone = () => {
         setIsTimerRunning(false);
-        const solvedCount = solvedMask.filter(Boolean).length;
-        if (solvedCount > 0) {
-            if (typeof confetti === 'function') {
-                firePracticeConfetti(confetti);
-            }
-            setAnimationStage('RATING');
-        } else {
-            setAnimationStage('ACTIVE_EXITING');
+        if (typeof confetti === 'function') {
+            firePracticeConfetti(confetti);
         }
+        setAnimationStage('RATING');
     };
 
     const handleRatingChange = (problemId: number, rating: number) => {
         setRatings(prev => ({ ...prev, [problemId]: rating }));
     };
 
-    const handleSubmitRatings = () => {
-        if (!competitionRatingsComplete) return;
+    const finalizeCompetitionPostRatings = (opts: { discardStarSelections: boolean }) => {
         const timeSpent = COMPETITION_DURATION - timeLeft;
-        competitionProblems.forEach((problem, index) => {
-            const solved = solvedMask[index];
-            if (solved) {
-                const rating = ratings[problem.id];
-                if (rating === undefined) return;
+        competitionProblems.forEach(problem => {
+            const rating = opts.discardStarSelections ? undefined : ratings[problem.id];
+            const useRating = rating !== undefined && rating > 0;
 
+            if (useRating) {
                 const newSolvedProblem: SolvedProblem = {
                     problem,
                     timeSpent,
@@ -189,20 +173,40 @@ const CompetitionPage: React.FC<CompetitionPageProps> = ({
                         sessionId,
                         status: 'solved',
                         timeSpentSec: timeSpent,
-                        ...(rating > 0 ? { userRating: rating } : {}),
+                        userRating: rating,
                     });
                 }
-            } else if (userId !== null) {
-                void postAttempt({
-                    userId,
-                    problemId: problem.id,
-                    sessionId,
+            } else {
+                const skippedEntry: SolvedProblem = {
+                    problem,
+                    timeSpent,
+                    difficultyRating: 0,
+                    solvedAt: new Date(),
                     status: 'skipped',
-                    timeSpentSec: timeSpent,
-                });
+                };
+                onProblemSolved(skippedEntry);
+                if (userId !== null) {
+                    void postAttempt({
+                        userId,
+                        problemId: problem.id,
+                        sessionId,
+                        status: 'skipped',
+                        timeSpentSec: timeSpent,
+                    });
+                }
             }
         });
         setAnimationStage('RATING_EXITING');
+    };
+
+    /** Submit star ratings: filled stars update difficulty; unrated problems are implicit skips. */
+    const handleSubmitRatings = () => {
+        finalizeCompetitionPostRatings({ discardStarSelections: false });
+    };
+
+    /** Skip all ratings (ignores any stars); no difficulty updates from this contest. */
+    const handleSkipAllRatings = () => {
+        finalizeCompetitionPostRatings({ discardStarSelections: true });
     };
     
     const getAnimationClasses = () => {
@@ -218,7 +222,6 @@ const CompetitionPage: React.FC<CompetitionPageProps> = ({
                 ratingClasses += ' translate-y-0';
                 break;
             case 'RATING_EXITING':
-            case 'ACTIVE_EXITING':
                 activeClasses += ' -translate-y-full transition-none';
                 ratingClasses += ' -translate-y-full';
                 break;
@@ -347,49 +350,46 @@ const CompetitionPage: React.FC<CompetitionPageProps> = ({
                 <div className="flex flex-col items-center justify-center min-h-dvh p-8">
                     <div className="bg-secondary p-8 rounded-lg shadow-2xl w-full max-w-3xl mx-4 text-center">
                         <h2 className="text-3xl font-bold mb-4 text-accent">Competition Complete!</h2>
-                        <p className="mb-8 text-light/80">Rate the difficulty of the problems you solved.</p>
+                        <p className="mb-8 text-light/80">
+                            Optionally rate how difficult each problem felt. Problems you leave unrated won&apos;t affect
+                            difficulty calibration.
+                        </p>
                         <div className="space-y-8">
-                            {competitionProblems.map((p, i) =>
-                                solvedMask[i] ? (
-                                    <div key={p.id} className="text-center sm:text-left">
-                                        <p className="mb-2 font-semibold text-light">
-                                            Problem {i + 1}
-                                            <span className="text-light-secondary font-normal"> · {p.topic}</span>
-                                        </p>
-                                        <DifficultyStarRating
-                                            mode="persistent"
-                                            active={animationStage === 'RATING'}
-                                            value={ratings[p.id]}
-                                            onChange={n => handleRatingChange(p.id, n)}
-                                            className="mb-3"
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => handleRatingChange(p.id, 0)}
-                                            className="mx-auto flex w-full max-w-[min(100%,20rem)] items-center justify-center rounded-xl border border-secondary/90 bg-primary/50 px-3 py-2 text-xs font-medium text-light-secondary transition-colors hover:border-accent/45 hover:text-accent sm:mx-0 sm:px-4 sm:py-2.5 sm:text-sm"
-                                        >
-                                            Skip rating
-                                        </button>
-                                    </div>
-                                ) : null,
-                            )}
+                            {competitionProblems.map((p, i) => (
+                                <div key={p.id} className="text-center sm:text-left">
+                                    <p className="mb-2 font-semibold text-light">
+                                        Problem {i + 1}
+                                        <span className="text-light-secondary font-normal"> · {p.topic}</span>
+                                    </p>
+                                    <DifficultyStarRating
+                                        mode="persistent"
+                                        active={animationStage === 'RATING'}
+                                        value={ratings[p.id]}
+                                        onChange={n => handleRatingChange(p.id, n)}
+                                        className="mb-0"
+                                    />
+                                </div>
+                            ))}
                         </div>
-                        {!competitionRatingsComplete && (
-                            <p className="mt-6 text-center text-sm text-light-secondary">
-                                Rate or skip each solved problem to continue.
-                            </p>
-                        )}
-                        <button
-                            type="button"
-                            onClick={handleSubmitRatings}
-                            disabled={!competitionRatingsComplete}
-                            className="mt-8 w-full rounded-md bg-accent py-2.5 text-sm font-bold text-primary transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 sm:mt-10 sm:py-3 sm:text-base"
-                        >
-                            Submit and Finish
-                        </button>
-                        <p className="mx-auto mt-3 max-w-md px-2 text-center text-xs leading-relaxed text-light-secondary sm:mt-4 sm:text-sm md:text-[0.9375rem]">
-                            Tap stars to rate each problem, or skip — skipping won&apos;t update difficulty calibration
-                            from your rating.
+                        <div className="mx-auto mt-8 flex w-full max-w-md flex-col items-center gap-3 sm:mt-10">
+                            <button
+                                type="button"
+                                onClick={handleSubmitRatings}
+                                className="w-full rounded-md bg-accent py-2.5 text-sm font-bold text-primary transition-opacity hover:opacity-90 sm:py-3 sm:text-base"
+                            >
+                                Submit and Finish
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleSkipAllRatings}
+                                className="w-full rounded-xl border border-secondary/90 bg-primary/50 px-4 py-2.5 text-center text-sm font-medium text-light-secondary transition-colors hover:border-accent/45 hover:text-accent sm:py-3 sm:text-base"
+                            >
+                                Skip ratings
+                            </button>
+                        </div>
+                        <p className="mx-auto mt-4 max-w-md px-2 text-center text-xs leading-relaxed text-light-secondary sm:mt-5 sm:text-sm md:text-[0.9375rem]">
+                            Use <span className="font-medium text-light/90">Skip ratings</span> to finish without saving
+                            any stars. Submit saves only problems you rated.
                         </p>
                     </div>
                 </div>

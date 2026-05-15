@@ -8,7 +8,7 @@ import {
   Navigate,
 } from 'react-router-dom';
 import { Page, SolvedProblem, Problem } from './types';
-import { MathJaxContext } from 'better-react-mathjax';
+import { MathJaxContext, type MathJax3Object } from 'better-react-mathjax';
 import { pathForPage, pageFromPath } from './lib/pagePaths';
 import { computeUpdatedMohs, shouldUpdateMohs } from './lib/mohsService';
 import {
@@ -38,6 +38,18 @@ import { ScrollToTop } from './components/ScrollToTop';
 
 const mathJaxConfig = {
   loader: { load: ['input/tex', 'output/chtml'] },
+  /**
+   * Hidden MathML (`mjx-assistive-mml`) follows MathJax menu settings and overrides plain
+   * `enableAssistiveMml`; align menu defaults with `handleMathJaxStartup` rerender.
+   */
+  options: {
+    enableAssistiveMml: false,
+    menuOptions: {
+      settings: {
+        assistiveMml: false,
+      },
+    },
+  },
   tex: {
     inlineMath: [['$', '$']],
     processEscapes: true,
@@ -51,6 +63,25 @@ const mathJaxConfig = {
     },
   },
 };
+
+/** After startup, menu `applySettings()` may still match saved localStorage — force lean DOM once. */
+function handleMathJaxStartup(mj: MathJax3Object): void {
+  void mj.startup.promise.then(() => {
+    const doc = mj.startup.document as {
+      menu?: {
+        settings: { assistiveMml?: boolean };
+        applySettings(): void;
+      };
+      options: { enableAssistiveMml?: boolean };
+      rerender(start?: number): unknown;
+    };
+    if (!doc.menu) return;
+    doc.menu.settings.assistiveMml = false;
+    doc.options.enableAssistiveMml = false;
+    doc.menu.applySettings();
+    void doc.rerender();
+  });
+}
 
 interface MainShellProps {
   user: AuthUser | null;
@@ -253,7 +284,7 @@ function App() {
   };
 
   return (
-    <MathJaxContext config={mathJaxConfig}>
+    <MathJaxContext config={mathJaxConfig} onStartup={handleMathJaxStartup}>
       {showLoginModal && (
         <LoginModal onLogin={handleLogin} onClose={() => setShowLoginModal(false)} />
       )}
